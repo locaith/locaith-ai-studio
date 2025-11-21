@@ -15,6 +15,8 @@ import { RecentHistorySidebar } from './components/RecentHistorySidebar';
 import { useUserActivity } from './src/hooks/useUserActivity';
 import { supabase } from './src/lib/supabase';
 import { GoogleGenAI } from '@google/genai';
+import VoiceChat from './Locaith-voice-streaming/components/VoiceChat';
+import { VoiceMode } from './Locaith-voice-streaming/types';
 
 // Extend Navigator interface for Web Bluetooth API
 declare global {
@@ -147,7 +149,7 @@ const LandingPage: React.FC<{ onStart: (prompt: string) => void }> = ({ onStart 
   );
 };
 
-const WebBuilderFeature: React.FC = () => {
+const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> = ({ initialPrompt, trigger }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -155,6 +157,9 @@ const WebBuilderFeature: React.FC = () => {
   const [isPreviewModalOpen, setPreviewModalOpen] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [projectName, setProjectName] = useState('');
+  const [progress, setProgress] = useState<number>(0);
+  const [isHoldPlaying, setIsHoldPlaying] = useState<boolean>(false);
+  const holdAudioRef = useRef<HTMLAudioElement | null>(null);
   
   // Integration State
   const [activePopover, setActivePopover] = useState<'github' | 'supabase' | null>(null);
@@ -196,6 +201,18 @@ const WebBuilderFeature: React.FC = () => {
 
     setMessages(prev => [...prev, userMsg, assistantMsg]);
     setIsLoading(true);
+    setProgress(10);
+    // Start hold music
+    try {
+      if (!holdAudioRef.current) {
+        const audio = new Audio('/voice-sound/loading.mp3');
+        audio.loop = true;
+        audio.volume = 0.6;
+        holdAudioRef.current = audio;
+      }
+      await holdAudioRef.current.play();
+      setIsHoldPlaying(true);
+    } catch {}
     setActiveTab(TabOption.PREVIEW); 
 
     try {
@@ -204,6 +221,7 @@ const WebBuilderFeature: React.FC = () => {
       let fullResponse = '';
       let codePart = '';
       let logPart = '';
+      let lastBuildCount = 0;
 
       for await (const chunk of stream) {
         fullResponse += chunk;
@@ -214,6 +232,7 @@ const WebBuilderFeature: React.FC = () => {
             codePart = fullResponse.substring(codeStartIndex);
             // Sanitize code immediately
             setGeneratedCode(cleanGeneratedCode(codePart));
+            setProgress((p) => (p < 90 ? 90 : p));
             
             setMessages(prev => prev.map(msg => 
                 msg.id === assistantMsgId 
@@ -227,6 +246,14 @@ const WebBuilderFeature: React.FC = () => {
                 ? { ...msg, content: logPart } 
                 : msg
             ));
+            // Update progress based on build steps count
+            const buildMatches = logPart.match(/\[BUILD\]/g);
+            const count = buildMatches ? buildMatches.length : 0;
+            if (count !== lastBuildCount) {
+              lastBuildCount = count;
+              const next = Math.min(85, 10 + count * 6);
+              setProgress(next);
+            }
         }
       }
 
@@ -237,10 +264,30 @@ const WebBuilderFeature: React.FC = () => {
       const successMsg: Message = {
           id: (Date.now() + 2).toString(),
           role: 'assistant',
-          content: "Tuyệt vời! Website của bạn đã hoàn tất. Bạn có thể xem bản xem trước ngay bây giờ.",
+          content: "Tuyệt vời! Website của bạn đã hoàn tất. Bạn có thể xem bản xem trước ngay bây giờ. Bạn có cần mình chỉnh gì cho website không? Hãy nói yêu cầu bằng giọng nói hoặc nhập lại prompt.",
           isStreaming: false
       };
       setMessages(prev => [...prev, successMsg]);
+      setProgress(100);
+      // Fade out hold music
+      try {
+        if (holdAudioRef.current && isHoldPlaying) {
+          const target = holdAudioRef.current;
+          const startVol = target.volume;
+          const steps = 10;
+          let i = 0;
+          const interval = setInterval(() => {
+            i++;
+            target.volume = Math.max(0, startVol * (1 - i / steps));
+            if (i >= steps) {
+              clearInterval(interval);
+              target.pause();
+              target.currentTime = 0;
+              setIsHoldPlaying(false);
+            }
+          }, 120);
+        }
+      } catch {}
 
     } catch (error) {
       console.error(error);
@@ -272,6 +319,14 @@ const WebBuilderFeature: React.FC = () => {
       
       handleSend(prompt);
   };
+
+  useEffect(() => {
+    if (initialPrompt && (!hasStarted || messages.length === 0)) {
+      handleStart(initialPrompt);
+    } else if (initialPrompt && typeof trigger === 'number') {
+      handleSend(initialPrompt);
+    }
+  }, [initialPrompt, trigger]);
 
   useEffect(() => {
     if (projectName) setGithubRepoName(projectName);
@@ -431,6 +486,17 @@ const WebBuilderFeature: React.FC = () => {
   return (
     <div className="flex h-full bg-transparent text-gray-900 overflow-hidden font-sans selection:bg-brand-500/30 animate-fade-in-up relative">
       
+      {/* Progress Overlay */}
+      {(isLoading || progress < 100) && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full px-4 py-2 shadow-lg flex items-center gap-3">
+          <div className="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></div>
+          <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-brand-600" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}></div>
+          </div>
+          <span className="text-xs text-gray-700">Đang tạo website...</span>
+        </div>
+      )}
+
       {/* Deployment Modal Overlay */}
       {isDeploying && (
           <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1183,6 +1249,9 @@ const App: React.FC = () => {
   const [customBg, setCustomBg] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>('HIDDEN');
+  const [voicePrompt, setVoicePrompt] = useState<string>('');
+  const [voiceTrigger, setVoiceTrigger] = useState<number>(0);
   
   // Auth
   const { user, signOut, isAuthenticated } = useAuth();
@@ -1204,6 +1273,12 @@ const App: React.FC = () => {
           setSidebarWidth(80);
       }
   }, []);
+
+  useEffect(() => {
+    if (activeFeature === 'voice') {
+      setVoiceMode('FULL');
+    }
+  }, [activeFeature]);
 
   const getBackgroundClass = () => {
       if (currentTheme === 'custom' && customBg) return '';
@@ -1240,6 +1315,26 @@ const App: React.FC = () => {
           }
       }
   }, []);
+
+  const handleNavigate = (view: any) => {
+    const map: Record<string, FeatureType> = {
+      BUILDER: 'web-builder',
+      INTERIOR: 'design',
+      COMPOSE: 'text',
+      SEARCH: 'search',
+      MARKETING: 'automation',
+    };
+    const target = map[String(view).toUpperCase()] || 'web-builder';
+    setActiveFeature(target);
+    if (voiceMode === 'FULL') setVoiceMode('WIDGET');
+  };
+
+  const handleFillAndGenerate = (text: string) => {
+    setActiveFeature('web-builder');
+    setVoicePrompt(text);
+    setVoiceTrigger((t) => t + 1);
+    if (voiceMode === 'FULL') setVoiceMode('WIDGET');
+  };
 
   useEffect(() => {
       window.addEventListener("mousemove", resize);
@@ -1295,7 +1390,7 @@ const App: React.FC = () => {
 
             <div className="flex-1 relative overflow-hidden">
               <Suspense fallback={<div className="h-full w-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div></div>}>
-                {activeFeature === 'web-builder' && <WebBuilderFeature />}
+                {activeFeature === 'web-builder' && <WebBuilderFeature initialPrompt={voicePrompt} trigger={voiceTrigger} />}
                 {activeFeature === 'design' && <DesignFeature />}
                 {activeFeature === 'text' && <ComposeFeature />}
                 {activeFeature === 'search' && <SearchFeature />}
@@ -1304,6 +1399,16 @@ const App: React.FC = () => {
                 {activeFeature === 'settings' && <SettingsFeature />}
               </Suspense>
             </div>
+
+            {voiceMode !== 'HIDDEN' && (
+              <VoiceChat
+                mode={voiceMode}
+                setMode={setVoiceMode}
+                onNavigate={handleNavigate}
+                onFillAndGenerate={handleFillAndGenerate}
+                lastUserInteraction={null}
+              />
+            )}
           </div>
         </div>
         
