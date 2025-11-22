@@ -747,39 +747,8 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       {/* --- Main Visual Area (Orb) --- */}
       <div className="flex-1 flex flex-col items-center justify-center relative">
 
-        {/* The Orb */}
-        <div className="relative w-64 h-64 flex items-center justify-center mb-10">
-          <div
-            className="absolute inset-0 rounded-full bg-blue-500 blur-3xl opacity-20 transition-all duration-100"
-            style={{ transform: `scale(${1 + audioVolume * 2})` }}
-          ></div>
-          <div
-            className="absolute inset-0 rounded-full bg-purple-500 blur-3xl opacity-20 mix-blend-screen transition-all duration-150 delay-75"
-            style={{ transform: `scale(${1 + audioVolume * 1.5})` }}
-          ></div>
-
-          <div className={`
-                relative w-32 h-32 rounded-full flex items-center justify-center transition-all duration-300
-                ${isConnected ? 'bg-gradient-to-br from-gray-100 to-gray-300 shadow-[0_0_50px_rgba(255,255,255,0.3)]' : 'bg-gray-800 border border-gray-700 shadow-none'}
-             `}>
-            {!isConnected ? (
-              <MicOff className="w-10 h-10 text-gray-500" />
-            ) : (
-              <div className="w-28 h-28 rounded-full bg-black flex items-center justify-center overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-500 via-purple-500 to-pink-500 opacity-80 animate-spin-slow blur-md"></div>
-                <div
-                  className="absolute inset-1 bg-black rounded-full z-10 flex items-center justify-center"
-                  style={{ transform: `scale(${0.9 + audioVolume * 0.2})`, transition: 'transform 0.05s ease-out' }}
-                >
-                  <div className="w-full h-full bg-gradient-to-br from-gray-800 to-black rounded-full opacity-90"></div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Status Text */}
-        <div className="text-center h-8 flex flex-col items-center justify-center">
+        <div className="text-center h-8 flex flex-col items-center justify-center mb-10">
           {connectionError ? (
             <div className="flex items-center space-x-2 text-red-400 bg-red-500/10 px-4 py-1 rounded-full border border-red-500/20">
               <AlertTriangle className="w-4 h-4" />
@@ -799,7 +768,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
         </div>
 
         {/* Transcripts Container */}
-        <div className="absolute bottom-28 w-full max-w-2xl px-6 max-h-[250px] overflow-y-auto scrollbar-hide mask-linear-fade">
+        <div className="w-full max-w-2xl px-6 max-h-[400px] overflow-y-auto scrollbar-hide mask-linear-fade">
           <div className="space-y-3 flex flex-col justify-end min-h-full pb-4">
             {transcripts.length === 0 && isConnected && (
               <div className="text-center text-gray-600 text-xs italic">Conversation will appear here...</div>
@@ -825,9 +794,16 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
         <button
           onClick={() => setIsMuted(!isMuted)}
           disabled={!isConnected}
-          className={`p-4 rounded-full transition-all ${isMuted ? 'bg-red-500/20 text-red-500' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'} ${!isConnected && 'opacity-50 cursor-not-allowed'}`}
+          className={`
+            relative p-4 rounded-full transition-all 
+            ${isMuted ? 'bg-red-500/20 text-red-500' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'} 
+            ${!isConnected && 'opacity-50 cursor-not-allowed'}
+          `}
         >
-          {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+          {isConnected && !isMuted && (
+            <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"></span>
+          )}
+          {isMuted ? <MicOff className="w-6 h-6 relative z-10" /> : <Mic className="w-6 h-6 relative z-10" />}
         </button>
 
         <button
@@ -839,7 +815,9 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
         >
           {isConnected ? (
             <>
-              <Pause className="w-6 h-6 fill-current" />
+              <div className="relative">
+                <Mic className="w-6 h-6" />
+              </div>
               <span>End Session</span>
             </>
           ) : (

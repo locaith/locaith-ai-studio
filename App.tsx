@@ -1237,17 +1237,24 @@ const SettingsFeature: React.FC = () => {
   );
 };
 
+import { LoginPage } from './components/LoginPage';
+
+// ... (keep existing imports)
+
 // --- Main App Shell ---
 
 const App: React.FC = () => {
   const [activeFeature, setActiveFeature] = useState<FeatureType>('web-builder');
   const [currentTheme, setCurrentTheme] = useState<ThemeType>('default');
   const [customBg, setCustomBg] = useState<string | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  // const [showAuthModal, setShowAuthModal] = useState(false); // Removed in favor of full page login
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
   const [voicePrompt, setVoicePrompt] = useState<string>('');
   const [voiceTrigger, setVoiceTrigger] = useState<number>(0);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('HIDDEN');
+
+  // View State for Login Page
+  const [view, setView] = useState<'app' | 'login'>('app');
 
   // Auth
   const { user, signOut, isAuthenticated } = useAuth();
@@ -1341,27 +1348,67 @@ const App: React.FC = () => {
     };
   }, [resize, stopResizing]);
 
+  // If view is login, render LoginPage
+  if (view === 'login') {
+    return (
+      <LoginPage
+        onLoginSuccess={() => setView('app')}
+        onBack={() => setView('app')}
+      />
+    );
+  }
+
+  // Mobile Menu State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close mobile menu when selecting a feature
+  const handleMobileSelect = (feature: FeatureType) => {
+    setActiveFeature(feature);
+    setIsMobileMenuOpen(false);
+  };
 
   return (
-    <div className="h-screen w-screen overflow-hidden transition-colors duration-300">
-      {/* Auth Modal */}
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} initialMode={authInitialMode} />
+    <div className="h-screen w-screen overflow-hidden transition-colors duration-300 relative">
+      {/* Auth Modal - Removed/Commented out as we use LoginPage now */}
+      {/* <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} initialMode={authInitialMode} /> */}
 
       <div className="flex h-full bg-white text-gray-900 font-sans overflow-hidden transition-colors duration-300">
 
+        {/* Mobile Overlay */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Resizable Global Sidebar */}
-        <div style={{ width: isSidebarCollapsed ? 80 : sidebarWidth }} className="flex-shrink-0 relative transition-all duration-100 ease-out">
+        <div
+          className={`
+            fixed inset-y-0 left-0 z-50 bg-white shadow-2xl md:shadow-none transition-transform duration-300 ease-out md:relative md:translate-x-0 flex-shrink-0
+            ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+          `}
+          style={{ width: isMobile ? '280px' : (isSidebarCollapsed ? 80 : sidebarWidth) }}
+        >
           <GlobalSidebar
             activeFeature={activeFeature}
-            onSelect={setActiveFeature}
+            onSelect={handleMobileSelect}
             currentTheme={currentTheme}
             onThemeChange={handleThemeChange}
-            isCollapsed={isSidebarCollapsed}
-            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            isCollapsed={isMobile ? false : isSidebarCollapsed}
+            onToggleCollapse={isMobile ? undefined : () => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
-          {/* Resize Handle */}
+          {/* Resize Handle (Desktop Only) */}
           <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-brand-500/50 transition-colors z-50"
+            className="hidden md:block absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-brand-500/50 transition-colors z-50"
             onMouseDown={startResizing}
           />
         </div>
@@ -1375,11 +1422,18 @@ const App: React.FC = () => {
           {currentTheme !== 'default' && <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px] z-0"></div>}
 
           <div className="relative z-10 h-full flex flex-col">
-            <div className="shrink-0 h-10 md:h-12 bg-white/80 backdrop-blur flex items-center justify-end px-3 md:px-4 border-b border-gray-200">
+            <div className="shrink-0 h-10 md:h-12 bg-white/80 backdrop-blur flex items-center justify-between md:justify-end px-3 md:px-4 border-b border-gray-200">
+              {/* Mobile Menu Trigger */}
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              </button>
               {!isAuthenticated && (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setAuthInitialMode('login'); setShowAuthModal(true); }} className="px-3 py-1.5 bg-white/80 border border-gray-200 rounded-full text-xs text-gray-700 hover:bg-white transition-colors">Đăng nhập</button>
-                  <button onClick={() => { setAuthInitialMode('signup'); setShowAuthModal(true); }} className="px-3 py-1.5 bg-white/80 border border-gray-200 rounded-full text-xs text-gray-700 hover:bg-white transition-colors">Đăng ký</button>
+                  <button onClick={() => { setAuthInitialMode('login'); setView('login'); }} className="px-3 py-1.5 bg-white/80 border border-gray-200 rounded-full text-xs text-gray-700 hover:bg-white transition-colors">Đăng nhập</button>
+                  <button onClick={() => { setAuthInitialMode('signup'); setView('login'); }} className="px-3 py-1.5 bg-white/80 border border-gray-200 rounded-full text-xs text-gray-700 hover:bg-white transition-colors">Đăng ký</button>
                 </div>
               )}
             </div>
