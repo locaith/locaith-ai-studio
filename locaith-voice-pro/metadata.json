@@ -1,0 +1,7 @@
+{
+  "name": "Locaith Studio Builder",
+  "description": "A pixel-perfect React implementation of the Locaith Studio Builder interface with Gemini API integration for generating app descriptions.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
