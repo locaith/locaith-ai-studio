@@ -55,12 +55,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ activeFeature, onS
     <div className="h-screen bg-white/90 backdrop-blur border-r border-gray-200 flex flex-col z-50 transition-colors duration-300 w-full overflow-hidden">
       {/* Studio Header */}
       <div className={`p-3 md:p-6 flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} transition-all`}>
-        <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-accent-600 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white">
-             <path fillRule="evenodd" d="M9.315 7.584C12.195 3.883 16.695 1.5 21.75 1.5a.75.75 0 01.75.75c0 5.056-2.383 9.555-6.084 12.436A6.75 6.75 0 019.75 22.5a.75.75 0 01-.75-.75v-4.131A15.838 15.838 0 016.382 15H2.25a.75.75 0 01-.75-.75 6.75 6.75 0 017.815-6.666zM15 6.75a2.25 2.25 0 100 4.5 2.25 2.25 0 000-4.5z" clipRule="evenodd" />
-             <path d="M5.26 17.242a.75.75 0 10-.897-1.203 5.243 5.243 0 00-2.05 5.022.75.75 0 00.625.627 5.243 5.243 0 002.322-4.446z" />
-           </svg>
-        </div>
+        <img src="/logo-locaith.png" alt="Locaith Studio" className="w-8 h-8 flex-shrink-0" />
         {!isCollapsed && (
             <div className="flex flex-col overflow-hidden">
                 <span className="font-bold text-gray-900 tracking-tight whitespace-nowrap">Locaith Studio</span>

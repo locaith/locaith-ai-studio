@@ -88,9 +88,6 @@ const LandingPage: React.FC<{ onStart: (prompt: string) => void }> = ({ onStart 
 
       <div className="z-10 w-full max-w-3xl px-6 flex flex-col items-center text-center">
         <div className="mb-8 animate-fade-in-up flex flex-col items-center">
-          <div className="w-14 h-14 text-brand-600 mb-4 bg-white p-3 rounded-2xl border border-gray-200 shadow-2xl backdrop-blur-sm">
-            <Logo className="w-full h-full" />
-          </div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-gray-900 mb-4 drop-shadow-sm">
             Locaith <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-accent-500">Builder</span>
           </h1>
@@ -1244,7 +1241,7 @@ import { LoginPage } from './components/LoginPage';
 // --- Main App Shell ---
 
 const App: React.FC = () => {
-  const [activeFeature, setActiveFeature] = useState<FeatureType>('web-builder');
+  const [activeFeature, setActiveFeature] = useState<FeatureType>('voice');
   const [currentTheme, setCurrentTheme] = useState<ThemeType>('default');
   const [customBg, setCustomBg] = useState<string | null>(null);
   // const [showAuthModal, setShowAuthModal] = useState(false); // Removed in favor of full page login
