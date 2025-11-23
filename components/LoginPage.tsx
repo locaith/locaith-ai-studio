@@ -45,7 +45,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
       {/* Video Background (Mobile: Absolute Fullscreen, Desktop: Right Column) */}
       <div className="absolute inset-0 lg:relative h-full w-full bg-black overflow-hidden z-0 lg:order-2">
         {/* Overlay for mobile readability */}
-        <div className="absolute inset-0 bg-black/70 lg:bg-gradient-to-l lg:from-transparent lg:to-[#020617] z-10 lg:w-32" />
+        <div className="absolute inset-0 bg-black/50 lg:bg-gradient-to-l lg:from-transparent lg:to-[#020617] z-10 lg:w-32" />
         <video
           key={videos[currentVideoIndex]}
           src={videos[currentVideoIndex]}
@@ -53,7 +53,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
           muted
           playsInline
           onEnded={handleVideoEnded}
-          className="absolute inset-0 w-full h-full object-cover opacity-60 lg:opacity-80"
+          className="absolute inset-0 w-full h-full object-cover opacity-75 lg:opacity-80"
         />
         <div className="absolute bottom-12 right-12 z-20 text-right max-w-md hidden lg:block">
           <h2 className="text-3xl font-bold text-white mb-2">Experience the Future</h2>
@@ -73,7 +73,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
           {/* Back Button */}
           <button
             onClick={onBack}
-            className="absolute -top-24 left-0 text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium"
+            className="mb-8 text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
             Back to Studio
