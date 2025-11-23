@@ -41,7 +41,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
   return (
     <div className="min-h-screen bg-[#020617] grid grid-cols-1 lg:grid-cols-2 animate-fadeIn overflow-hidden">
       {/* Left Column: Form */}
-      <div className="relative flex flex-col justify-center px-4 sm:px-12 md:px-20 lg:px-24 xl:px-32 z-10">
+      <div className="relative flex flex-col justify-center px-4 sm:px-12 md:px-20 lg:px-24 xl:px-32 z-10 lg:order-1">
         {/* ... (rest of left column remains unchanged) ... */}
         {/* Glow background for form area */}
         <div className="absolute inset-0 pointer-events-none">
@@ -147,9 +147,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
         </div>
       </div>
 
-      {/* Right Column: Video */}
-      <div className="hidden lg:block relative h-full w-full bg-black overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#020617] z-10 w-32" />
+      {/* Right Column: Video (Background on Mobile, Side on Desktop) */}
+      <div className="absolute inset-0 lg:relative lg:block h-full w-full bg-black overflow-hidden z-0 lg:order-2">
+        <div className="absolute inset-0 bg-black/60 lg:bg-gradient-to-l lg:from-transparent lg:to-[#020617] z-10 lg:w-32" />
         <video
           key={videos[currentVideoIndex]}
           src={videos[currentVideoIndex]}
@@ -157,9 +157,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
           muted
           playsInline
           onEnded={handleVideoEnded}
-          className="absolute inset-0 w-full h-full object-cover opacity-80"
+          className="absolute inset-0 w-full h-full object-cover opacity-60 lg:opacity-80"
         />
-        <div className="absolute bottom-12 right-12 z-20 text-right max-w-md">
+        <div className="absolute bottom-12 right-12 z-20 text-right max-w-md hidden lg:block">
           <h2 className="text-3xl font-bold text-white mb-2">Experience the Future</h2>
           <p className="text-slate-400">Build, design, and automate with the power of Locaith AI.</p>
         </div>
