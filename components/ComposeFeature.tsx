@@ -21,46 +21,47 @@ export const ComposeFeature: React.FC = () => {
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string; sources?: LegalSource[] }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [processingSteps, setProcessingSteps] = useState<string[]>([]);
-  
+  const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'document'>('chat');
+
   // Document State
   const [docContent, setDocContent] = useState<string>('');
   const [legalBases, setLegalBases] = useState<LegalSource[]>([]);
-  
+
   // Resizable Pane State
   const [leftWidth, setLeftWidth] = useState(400); // Initial width
   const isResizingRef = useRef(false);
 
   const startResizing = useCallback((e: React.MouseEvent) => {
-      e.preventDefault();
-      isResizingRef.current = true;
+    e.preventDefault();
+    isResizingRef.current = true;
   }, []);
 
   const stopResizing = useCallback(() => {
-      isResizingRef.current = false;
+    isResizingRef.current = false;
   }, []);
 
   const resize = useCallback((e: MouseEvent) => {
-      if (isResizingRef.current) {
-          let newWidth = e.clientX - 64; // approximate offset for main sidebar if collapsed or expanded
-          // We need to calculate relative to the container, but simplified for now using clientX
-          // Assuming global sidebar is roughly 256px or 80px.
-          // Better approach: just use movement
-          setLeftWidth(prev => {
-             const next = prev + e.movementX;
-             if (next < 300) return 300;
-             if (next > 800) return 800;
-             return next;
-          });
-      }
+    if (isResizingRef.current) {
+      let newWidth = e.clientX - 64; // approximate offset for main sidebar if collapsed or expanded
+      // We need to calculate relative to the container, but simplified for now using clientX
+      // Assuming global sidebar is roughly 256px or 80px.
+      // Better approach: just use movement
+      setLeftWidth(prev => {
+        const next = prev + e.movementX;
+        if (next < 300) return 300;
+        if (next > 800) return 800;
+        return next;
+      });
+    }
   }, []);
 
   useEffect(() => {
-      window.addEventListener('mousemove', resize);
-      window.addEventListener('mouseup', stopResizing);
-      return () => {
-          window.removeEventListener('mousemove', resize);
-          window.removeEventListener('mouseup', stopResizing);
-      };
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
   }, [resize, stopResizing]);
 
   // Setup default blank document structure according to Decree 30
@@ -133,12 +134,12 @@ export const ComposeFeature: React.FC = () => {
     setChatInput('');
     setIsLoading(true);
     // We do NOT clear processingSteps here to let them persist or we can clear if starting new task
-    setProcessingSteps([]); 
+    setProcessingSteps([]);
 
     try {
       // STEP 1: Analyze Request
       addStep("Đang phân tích yêu cầu của bạn...");
-      
+
       // STEP 2: Search Legal Bases
       addStep("Đang tra cứu hệ thống văn bản pháp luật (Nghị định, Thông tư)...");
       const searchPrompt = `
@@ -159,13 +160,13 @@ export const ComposeFeature: React.FC = () => {
       const sources: LegalSource[] = groundingChunks
         .map((chunk: any) => chunk.web ? { title: chunk.web.title, uri: chunk.web.uri, snippet: chunk.web.title } : null)
         .filter(Boolean);
-      
+
       setLegalBases(sources);
 
       if (sources.length > 0) {
-          addStep(`Đã tìm thấy ${sources.length} văn bản pháp luật liên quan.`);
+        addStep(`Đã tìm thấy ${sources.length} văn bản pháp luật liên quan.`);
       } else {
-          addStep("Không tìm thấy văn bản cụ thể, sử dụng mẫu chung.");
+        addStep("Không tìm thấy văn bản cụ thể, sử dụng mẫu chung.");
       }
 
       // STEP 3: Drafting
@@ -220,13 +221,13 @@ export const ComposeFeature: React.FC = () => {
       let draftHtml = draftResponse.text;
       draftHtml = draftHtml.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '');
       draftHtml = draftHtml.replace(/<html>/i, '').replace(/<\/html>/i, '').replace(/<body>/i, '').replace(/<\/body>/i, '');
-      
+
       setDocContent(draftHtml);
-      
+
       addStep("Hoàn tất.");
 
-      const assistantMsg = { 
-        role: 'assistant' as const, 
+      const assistantMsg = {
+        role: 'assistant' as const,
         content: `Đã soạn thảo văn bản theo chuẩn Nghị định 30/2020/NĐ-CP. Đã cập nhật ${sources.length} căn cứ pháp lý trong phần nội dung.`,
         sources: sources
       };
@@ -244,13 +245,13 @@ export const ComposeFeature: React.FC = () => {
   const handlePrint = () => {
     const printWindow = window.open('', '', 'height=600,width=800');
     if (printWindow) {
-        printWindow.document.write('<html><head><title>Print Document</title>');
-        printWindow.document.write('<style>@page { size: A4; margin: 20mm 15mm; } body { font-family: "Times New Roman", serif; } a { text-decoration: none; color: black; } </style>');
-        printWindow.document.write('</head><body>');
-        printWindow.document.write(docContent);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.print();
+      printWindow.document.write('<html><head><title>Print Document</title>');
+      printWindow.document.write('<style>@page { size: A4; margin: 20mm 15mm; } body { font-family: "Times New Roman", serif; } a { text-decoration: none; color: black; } </style>');
+      printWindow.document.write('</head><body>');
+      printWindow.document.write(docContent);
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      printWindow.print();
     }
   };
 
@@ -271,159 +272,176 @@ export const ComposeFeature: React.FC = () => {
 
   return (
     <div className="flex h-full bg-transparent overflow-hidden animate-fade-in-up selection:bg-accent-500/30 flex-col md:flex-row">
-      
+
       {/* Left Column: Chat & Research */}
-      <div 
+      <div
         style={{ width: leftWidth }}
-        className="hidden md:flex flex-col border-r border-gray-200 bg-white/90 backdrop-blur-md z-10 shadow-xl relative flex-shrink-0"
+        className={`${activeMobileTab === 'chat' ? 'flex' : 'hidden'} md:flex flex-col border-r border-gray-200 bg-white/90 backdrop-blur-md z-10 shadow-xl relative flex-shrink-0 w-full md:w-auto h-full`}
       >
-         <div className="p-4 border-b border-gray-200 flex items-center gap-2">
-            <div className="bg-accent-100 p-2 rounded-lg text-accent-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
-            </div>
-            <div>
-                <h2 className="font-bold text-gray-900">Soạn thảo Văn bản</h2>
-                <p className="text-xs text-gray-500">Chuẩn Nghị định 30/2020/NĐ-CP</p>
-            </div>
-         </div>
+        <div className="p-4 border-b border-gray-200 flex items-center gap-2">
+          <div className="bg-accent-100 p-2 rounded-lg text-accent-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
+          </div>
+          <div>
+            <h2 className="font-bold text-gray-900">Soạn thảo Văn bản</h2>
+            <p className="text-xs text-gray-500">Chuẩn Nghị định 30/2020/NĐ-CP</p>
+          </div>
+        </div>
 
-         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((msg, idx) => (
-                <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[90%] p-3 rounded-xl text-sm ${
-                        msg.role === 'user' 
-                        ? 'bg-accent-600 text-white rounded-br-none' 
-                        : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                    }`}>
-                        {msg.content}
-                    </div>
-                    
-                    {/* Source Citations Popup/Card Style */}
-                    {msg.sources && msg.sources.length > 0 && (
-                        <div className="mt-3 w-full max-w-[90%] bg-white border border-gray-200 rounded-xl p-4 shadow-lg relative group">
-                            <div className="absolute -left-1 top-4 w-1 h-8 bg-brand-500 rounded-r-full"></div>
-                            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                <span className="p-1 bg-brand-100 text-brand-600 rounded-md">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-                                </span>
-                                Căn cứ pháp lý
-                            </div>
-                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                                {msg.sources.map((source, sIdx) => (
-                                    <div key={sIdx} className="relative pl-3 border-l-2 border-gray-200 hover:border-brand-500 transition-colors">
-                                        <a href={source.uri} target="_blank" rel="noopener noreferrer" className="block group-item">
-                                            <div className="text-xs font-semibold text-gray-800 group-hover:text-brand-600 transition-colors line-clamp-2">
-                                                {source.title}
-                                            </div>
-                                            <div className="flex items-center gap-1 mt-1">
-                                                <img 
-                                                    src={`https://www.google.com/s2/favicons?domain=${new URL(source.uri).hostname}&sz=16`} 
-                                                    alt="favicon" 
-                                                    className="w-3 h-3 opacity-60"
-                                                    onError={(e) => (e.currentTarget.style.display = 'none')} 
-                                                />
-                                                <div className="text-[10px] text-gray-400 truncate">{new URL(source.uri).hostname}</div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            ))}
-            
-            {/* Persistent Streaming Steps Visualization */}
-            {processingSteps.length > 0 && (
-                <div className="ml-2 space-y-2 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Quy trình xử lý</div>
-                    {processingSteps.map((step, idx) => (
-                        <div key={idx} className="flex items-center gap-2 animate-fade-in-up">
-                             {idx === processingSteps.length - 1 && isLoading ? (
-                                 <span className="w-4 h-4 flex items-center justify-center">
-                                    <span className="w-2 h-2 bg-accent-500 rounded-full animate-ping"></span>
-                                 </span>
-                             ) : (
-                                 <span className="text-green-500 w-4 h-4 flex items-center justify-center text-[10px]">✓</span>
-                             )}
-                             <span className={`text-xs ${idx === processingSteps.length - 1 && isLoading ? 'text-accent-600 font-medium' : 'text-gray-500'}`}>
-                                 {step}
-                             </span>
-                        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              <div className={`max-w-[90%] p-3 rounded-xl text-sm ${msg.role === 'user'
+                  ? 'bg-accent-600 text-white rounded-br-none'
+                  : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                }`}>
+                {msg.content}
+              </div>
+
+              {/* Source Citations Popup/Card Style */}
+              {msg.sources && msg.sources.length > 0 && (
+                <div className="mt-3 w-full max-w-[90%] bg-white border border-gray-200 rounded-xl p-4 shadow-lg relative group">
+                  <div className="absolute -left-1 top-4 w-1 h-8 bg-brand-500 rounded-r-full"></div>
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span className="p-1 bg-brand-100 text-brand-600 rounded-md">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                    </span>
+                    Căn cứ pháp lý
+                  </div>
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                    {msg.sources.map((source, sIdx) => (
+                      <div key={sIdx} className="relative pl-3 border-l-2 border-gray-200 hover:border-brand-500 transition-colors">
+                        <a href={source.uri} target="_blank" rel="noopener noreferrer" className="block group-item">
+                          <div className="text-xs font-semibold text-gray-800 group-hover:text-brand-600 transition-colors line-clamp-2">
+                            {source.title}
+                          </div>
+                          <div className="flex items-center gap-1 mt-1">
+                            <img
+                              src={`https://www.google.com/s2/favicons?domain=${new URL(source.uri).hostname}&sz=16`}
+                              alt="favicon"
+                              className="w-3 h-3 opacity-60"
+                              onError={(e) => (e.currentTarget.style.display = 'none')}
+                            />
+                            <div className="text-[10px] text-gray-400 truncate">{new URL(source.uri).hostname}</div>
+                          </div>
+                        </a>
+                      </div>
                     ))}
+                  </div>
                 </div>
-            )}
-         </div>
-
-         <div className="p-4 border-t border-gray-200">
-            <div className="relative">
-                <textarea 
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                    placeholder="Ví dụ: Soạn công văn gửi Bộ Tài chính về việc..."
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent-500 focus:outline-none resize-none h-24"
-                />
-                <button 
-                    onClick={handleSend}
-                    disabled={isLoading || !chatInput.trim()}
-                    className="absolute bottom-2 right-2 p-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 disabled:opacity-50 transition-colors"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                </button>
+              )}
             </div>
-         </div>
+          ))}
 
-         {/* Drag Handle */}
-         <div 
-            className="hidden md:block absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-accent-500/50 transition-colors z-20"
-            onMouseDown={startResizing}
-         ></div>
+          {/* Persistent Streaming Steps Visualization */}
+          {processingSteps.length > 0 && (
+            <div className="ml-2 space-y-2 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
+              <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Quy trình xử lý</div>
+              {processingSteps.map((step, idx) => (
+                <div key={idx} className="flex items-center gap-2 animate-fade-in-up">
+                  {idx === processingSteps.length - 1 && isLoading ? (
+                    <span className="w-4 h-4 flex items-center justify-center">
+                      <span className="w-2 h-2 bg-accent-500 rounded-full animate-ping"></span>
+                    </span>
+                  ) : (
+                    <span className="text-green-500 w-4 h-4 flex items-center justify-center text-[10px]">✓</span>
+                  )}
+                  <span className={`text-xs ${idx === processingSteps.length - 1 && isLoading ? 'text-accent-600 font-medium' : 'text-gray-500'}`}>
+                    {step}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-gray-200">
+          <div className="relative">
+            <textarea
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              placeholder="Ví dụ: Soạn công văn gửi Bộ Tài chính về việc..."
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent-500 focus:outline-none resize-none h-24"
+            />
+            <button
+              onClick={handleSend}
+              disabled={isLoading || !chatInput.trim()}
+              className="absolute bottom-2 right-2 p-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 disabled:opacity-50 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Drag Handle */}
+        <div
+          className="hidden md:block absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-accent-500/50 transition-colors z-20"
+          onMouseDown={startResizing}
+        ></div>
+
+        {/* Mobile Switch to Document Button */}
+        <button
+          onClick={() => setActiveMobileTab('document')}
+          className="md:hidden absolute bottom-20 right-4 z-50 bg-brand-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce"
+        >
+          <span>Xem văn bản</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+        </button>
       </div>
 
       {/* Right Column: A4 Preview */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-white/50 backdrop-blur-sm">
-         <div className="h-14 bg-white/90 border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shadow-sm z-20 sticky top-0 md:static">
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-600">Xem trước văn bản (A4)</span>
-                <span className="px-2 py-0.5 bg-gray-100 text-[10px] text-gray-500 rounded border border-gray-200">Chế độ chỉnh sửa</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <button onClick={handlePrint} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                    In ấn
-                </button>
-                <button onClick={handleDownload} className="p-2 text-gray-500 hover:text-brand-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Tải Word (.doc)
-                </button>
-                <button className="px-4 py-1.5 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-500 transition-colors shadow-lg shadow-brand-500/20">
-                    Chia sẻ Link
-                </button>
-            </div>
-         </div>
+      <div className={`${activeMobileTab === 'document' ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full overflow-hidden relative bg-white/50 backdrop-blur-sm`}>
+        <div className="h-14 bg-white/90 border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shadow-sm z-20 sticky top-0 md:static">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">Xem trước văn bản (A4)</span>
+            <span className="px-2 py-0.5 bg-gray-100 text-[10px] text-gray-500 rounded border border-gray-200">Chế độ chỉnh sửa</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={handlePrint} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+              In ấn
+            </button>
+            <button onClick={handleDownload} className="p-2 text-gray-500 hover:text-brand-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Tải Word (.doc)
+            </button>
+            <button className="px-4 py-1.5 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-500 transition-colors shadow-lg shadow-brand-500/20">
+              Chia sẻ Link
+            </button>
+          </div>
+        </div>
 
-         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-200/50 flex justify-center items-start">
-             <div 
-                className="bg-white text-black shadow-2xl print:shadow-none transition-all w-full md:w-[210mm] md:min-h-[297mm]"
-                style={{
-                    height: 'auto',
-                    padding: '20mm 15mm',
-                    fontFamily: '"Times New Roman", Times, serif',
-                    fontSize: '14pt',
-                    lineHeight: '1.5',
-                    boxSizing: 'border-box',
-                    marginBottom: '50px'
-                }}
-             >
-                <div 
-                    contentEditable 
-                    dangerouslySetInnerHTML={{ __html: docContent }} 
-                    className="outline-none focus:ring-1 focus:ring-brand-500/20 min-h-full"
-                    onBlur={(e) => setDocContent(e.currentTarget.innerHTML)}
-                />
-             </div>
-         </div>
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-200/50 flex justify-center items-start">
+          <div
+            className="bg-white text-black shadow-2xl print:shadow-none transition-all w-full md:w-[210mm] md:min-h-[297mm]"
+            style={{
+              height: 'auto',
+              padding: '20mm 15mm',
+              fontFamily: '"Times New Roman", Times, serif',
+              fontSize: '14pt',
+              lineHeight: '1.5',
+              boxSizing: 'border-box',
+              marginBottom: '50px'
+            }}
+          >
+            <div
+              contentEditable
+              dangerouslySetInnerHTML={{ __html: docContent }}
+              className="outline-none focus:ring-1 focus:ring-brand-500/20 min-h-full"
+              onBlur={(e) => setDocContent(e.currentTarget.innerHTML)}
+            />
+          </div>
+        </div>
+
+        {/* Mobile Switch to Chat Button */}
+        <button
+          onClick={() => setActiveMobileTab('chat')}
+          className="md:hidden absolute bottom-6 right-4 z-50 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          <span>Quay lại Chat</span>
+        </button>
       </div>
     </div>
   );

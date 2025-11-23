@@ -1348,16 +1348,6 @@ const App: React.FC = () => {
     };
   }, [resize, stopResizing]);
 
-  // If view is login, render LoginPage
-  if (view === 'login') {
-    return (
-      <LoginPage
-        onLoginSuccess={() => setView('app')}
-        onBack={() => setView('app')}
-      />
-    );
-  }
-
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -1368,6 +1358,16 @@ const App: React.FC = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // If view is login, render LoginPage
+  if (view === 'login') {
+    return (
+      <LoginPage
+        onLoginSuccess={() => setView('app')}
+        onBack={() => setView('app')}
+      />
+    );
+  }
 
   // Close mobile menu when selecting a feature
   const handleMobileSelect = (feature: FeatureType) => {

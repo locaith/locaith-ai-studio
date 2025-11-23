@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// Force refresh
 import { useAuth } from '../src/hooks/useAuth';
 
 interface LoginPageProps {
@@ -39,17 +40,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] grid grid-cols-1 lg:grid-cols-2 animate-fadeIn overflow-hidden">
+    <div className="min-h-screen bg-[#020617] relative lg:grid lg:grid-cols-2 overflow-hidden">
+
+      {/* Video Background (Mobile: Absolute Fullscreen, Desktop: Right Column) */}
+      <div className="absolute inset-0 lg:relative h-full w-full bg-black overflow-hidden z-0 lg:order-2">
+        {/* Overlay for mobile readability */}
+        <div className="absolute inset-0 bg-black/70 lg:bg-gradient-to-l lg:from-transparent lg:to-[#020617] z-10 lg:w-32" />
+        <video
+          key={videos[currentVideoIndex]}
+          src={videos[currentVideoIndex]}
+          autoPlay
+          muted
+          playsInline
+          onEnded={handleVideoEnded}
+          className="absolute inset-0 w-full h-full object-cover opacity-60 lg:opacity-80"
+        />
+        <div className="absolute bottom-12 right-12 z-20 text-right max-w-md hidden lg:block">
+          <h2 className="text-3xl font-bold text-white mb-2">Experience the Future</h2>
+          <p className="text-slate-400">Build, design, and automate with the power of Locaith AI.</p>
+        </div>
+      </div>
+
       {/* Left Column: Form */}
-      <div className="relative flex flex-col justify-center px-4 sm:px-12 md:px-20 lg:px-24 xl:px-32 z-10 lg:order-1">
-        {/* ... (rest of left column remains unchanged) ... */}
-        {/* Glow background for form area */}
-        <div className="absolute inset-0 pointer-events-none">
+      <div className="relative flex flex-col justify-center px-4 sm:px-12 md:px-20 lg:px-24 xl:px-32 z-20 lg:order-1 h-full">
+        {/* Glow background for form area - Desktop only or subtle on mobile */}
+        <div className="absolute inset-0 pointer-events-none hidden lg:block">
           <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-sky-500/10 rounded-full blur-[100px] opacity-50" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px] opacity-40" />
         </div>
 
-        <div className="relative">
+        <div className="relative w-full max-w-md mx-auto lg:max-w-none">
           {/* Back Button */}
           <button
             onClick={onBack}
@@ -144,24 +164,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
               Sign up now
             </a>
           </p>
-        </div>
-      </div>
-
-      {/* Right Column: Video (Background on Mobile, Side on Desktop) */}
-      <div className="absolute inset-0 lg:relative lg:block h-full w-full bg-black overflow-hidden z-0 lg:order-2">
-        <div className="absolute inset-0 bg-black/60 lg:bg-gradient-to-l lg:from-transparent lg:to-[#020617] z-10 lg:w-32" />
-        <video
-          key={videos[currentVideoIndex]}
-          src={videos[currentVideoIndex]}
-          autoPlay
-          muted
-          playsInline
-          onEnded={handleVideoEnded}
-          className="absolute inset-0 w-full h-full object-cover opacity-60 lg:opacity-80"
-        />
-        <div className="absolute bottom-12 right-12 z-20 text-right max-w-md hidden lg:block">
-          <h2 className="text-3xl font-bold text-white mb-2">Experience the Future</h2>
-          <p className="text-slate-400">Build, design, and automate with the power of Locaith AI.</p>
         </div>
       </div>
     </div>

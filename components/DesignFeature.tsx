@@ -270,13 +270,13 @@ const EditorView: React.FC<EditorViewProps> = ({
                 </div>
             </div>
 
-            <div className="pt-14 flex w-full h-full">
+            <div className="pt-14 flex flex-col md:flex-row w-full h-auto md:h-full overflow-y-auto md:overflow-hidden">
                 {/* LEFT: Upload & Preview */}
-                <div className="w-1/4 bg-white border-r border-gray-200 p-6 flex flex-col">
+                <div className="w-full md:w-1/4 bg-white border-r border-gray-200 p-6 flex flex-col shrink-0 h-auto md:h-full min-h-[300px]">
                     <div className="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">
                         {origin === 'generated' ? 'Ảnh nguồn (AI Generated)' : 'Ảnh gốc (Input)'}
                     </div>
-                    <div className="flex-1 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden hover:border-brand-500 transition-colors group bg-gray-50">
+                    <div className="flex-1 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden hover:border-brand-500 transition-colors group bg-gray-50 min-h-[200px]">
                         {originalImage ? (
                             <>
                                 <img src={originalImage} alt="Original" className="w-full h-full object-contain p-2" />
@@ -304,7 +304,7 @@ const EditorView: React.FC<EditorViewProps> = ({
                 </div>
 
                 {/* CENTER: Result Preview */}
-                <div className="flex-1 bg-gray-100 p-8 flex items-center justify-center relative">
+                <div className="w-full md:flex-1 bg-gray-100 p-8 flex items-center justify-center relative shrink-0 min-h-[400px]">
                     <div className="bg-white w-full max-w-2xl aspect-square rounded-2xl shadow-sm border border-gray-200 flex items-center justify-center overflow-hidden relative">
                         {generatedImage ? (
                             <button onClick={() => setShowImageModal(true)} className="w-full h-full">
@@ -346,7 +346,7 @@ const EditorView: React.FC<EditorViewProps> = ({
                 </div>
 
                 {/* RIGHT: Editor Tools */}
-                <div className="w-full md:w-1/3 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col">
+                <div className="w-full md:w-1/3 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col shrink-0 h-auto md:h-full">
                     {/* Tabs */}
                     <div className="flex border-b border-gray-200">
                         <button
