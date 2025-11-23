@@ -1,0 +1,151 @@
+// =====================================================
+// VOICE CHAT FIX - DUPLICATE SESSION BUG
+// =====================================================
+// Apply this fix manually to: components/VoiceChat.tsx
+// =====================================================
+
+// STEP 1: Add this ref AFTER line 177 (after lastAiTranscriptId ref)
+// -----------------------------------------------
+// ADD THESE LINES:
+
+  // 🔒 CRITICAL: Prevent duplicate connections
+  const isConnectingRef = useRef(false);
+
+// -----------------------------------------------
+
+
+// STEP 2: Update connect() function (starts around line 338)
+// -----------------------------------------------
+// FIND THIS:
+  const connect = async () => {
+    if (!aiRef.current) {
+      setConnectionError("AI Client not initialized. Missing API Key?");
+      return;
+    }
+    setConnectionError(null);
+
+    try {
+
+// REPLACE WITH THIS:
+  const connect = async () => {
+    // 🔒 GUARD: Prevent duplicate connections
+    if (isConnectingRef.current || sessionRef.current) {
+      console.warn('⚠️ Already connecting or connected. Skipping duplicate connection attempt.');
+      return;
+    }
+    
+    console.log('🚀 Starting NEW connection...');
+    isConnectingRef.current = true;
+    
+    if (!aiRef.current) {
+      setConnectionError("AI Client not initialized. Missing API Key?");
+      isConnectingRef.current = false; // Reset flag on error
+      return;
+    }
+    setConnectionError(null);
+
+    try {
+
+// -----------------------------------------------
+
+
+// STEP 3: Update onopen callback (around line 380)
+// -----------------------------------------------
+// FIND THIS:
+          onopen: () => {
+            console.log("Gemini Live Connected");
+            setIsConnected(true);
+            setConnectionError(null);
+
+// REPLACE WITH THIS:
+          onopen: () => {
+            console.log("✅ Gemini Live Connected Successfully");
+            setIsConnected(true);
+            setConnectionError(null);
+            isConnectingRef.current = false; // Reset flag on successful connection
+
+// -----------------------------------------------
+
+
+// STEP 4: Update error handler in connect() (around line 530)
+// -----------------------------------------------
+// FIND THIS (at the END of connect function, in catch block):
+    } catch (err: any) {
+      console.error("Connection failed", err);
+      setConnectionError(err.message || "Failed to connect to Gemini Live");
+      setIsConnected(false);
+    }
+  };
+
+// REPLACE WITH THIS:
+    } catch (err: any) {
+      console.error("Connection failed", err);
+      setConnectionError(err.message || "Failed to connect to Gemini Live");
+      setIsConnected(false);
+      isConnectingRef.current = false; // Reset flag on error
+    }
+  };
+
+// -----------------------------------------------
+
+
+// STEP 5: Update cleanup() function (around line 226)
+// -----------------------------------------------
+// ADD this line AT THE START of cleanup() function:
+
+  const cleanup = () => {
+    console.log('🔴 CLEANUP - Disconnecting voice...');
+    isConnectingRef.current = false; // Reset connection flag
+    
+    // ... rest of cleanup code ...
+  };
+
+// -----------------------------------------------
+
+
+// STEP 6: Update handleClose() (around line 606)
+// -----------------------------------------------
+// FIND THIS:
+  const handleClose = () => {
+    cleanup();
+    setMode('HIDDEN');
+  };
+
+// REPLACE WITH THIS:
+  const handleClose = () => {
+    console.log('🔒 User closed Voice Chat');
+    cleanup();
+    // Force reset refs
+    sessionRef.current = null;
+    isConnectingRef.current = false;
+    setMode('HIDDEN');
+  };
+
+// -----------------------------------------------
+
+// =====================================================
+// TEST STEPS AFTER APPLYING
+// =====================================================
+/*
+1. Hard refresh browser (Ctrl + Shift + R)
+2. Open Voice Chat (FULL mode)
+3. Open Console (F12) → should see: "🚀 Starting NEW connection..."
+4. Try to open voice AGAIN while connected → should see: "⚠️ Already connecting..."
+5. Click X to close → should see: "🔴 CLEANUP..." and "🔒 User closed..."
+6. Open Console → Check if mic indicator is OFF (should not show "🎤" in browser tab)
+7. Try speaking → Voice should NOT respond (really closed)
+*/
+
+// =====================================================
+// ROOT CAUSE EXPLAINED
+// =====================================================
+/*
+The duplicate voice sessions were caused by React re-renders triggering
+the useEffect multiple times, each time calling connect(). 
+
+Without a guard, this created MULTIPLE Gemini Live sessions running
+simultaneously, all listening to the mic and responding.
+
+The isConnectingRef acts as a MUTEX/LOCK to ensure only ONE session
+is created at a time.
+*/

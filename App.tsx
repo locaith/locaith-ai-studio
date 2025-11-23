@@ -454,25 +454,57 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
     }, 3000);
   }
 
-  const handleDeploy = () => {
+  const handleDeploy = async () => {
     setIsDeploying(true);
 
-    // Track deployment activity
-    trackActivity({
-      feature_type: 'web-builder',
-      action_type: 'deploy',
-      action_details: {
-        project_name: projectName,
-        url: `https://${projectName.toLowerCase()}.locaith.app`,
-        description: `Deployed project: ${projectName}`
-      }
-    });
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    // Simulate deployment process
-    setTimeout(() => {
-      setDeployedUrl(`https://${projectName.toLowerCase()}.locaith.app`);
+      if (userError || !user) {
+        alert('Bạn cần đăng nhập để deploy website!');
+        setIsDeploying(false);
+        return;
+      }
+
+      // Call Edge Function to deploy
+      const { data, error } = await supabase.functions.invoke('deploy-website', {
+        body: {
+          project_name: projectName,
+          html_content: generatedCode || '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Locaith Project</title></head><body><h1>Hello World</h1></body></html>',
+          github_repo: githubRepoName || null,
+        }
+      });
+
+      if (error) {
+        console.error('Deploy error:', error);
+        alert(`Deploy thất bại: ${error.message}`);
+        setIsDeploying(false);
+        return;
+      }
+
+      // Success!
+      setDeployedUrl(data.url);
+
+      // Track deployment activity
+      trackActivity({
+        feature_type: 'web-builder',
+        action_type: 'deploy',
+        action_details: {
+          project_name: projectName,
+          url: data.url,
+          subdomain: data.subdomain,
+          website_id: data.website_id,
+          description: `Deployed project: ${projectName}`
+        }
+      });
+
+    } catch (error: any) {
+      console.error('Deploy failed:', error);
+      alert('Deploy thất bại! Vui lòng thử lại.');
+    } finally {
       setIsDeploying(false);
-    }, 3000);
+    }
   };
 
   if (!hasStarted) {

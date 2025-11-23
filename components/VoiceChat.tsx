@@ -176,6 +176,9 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
   const lastUserTranscriptId = useRef<number | null>(null);
   const lastAiTranscriptId = useRef<number | null>(null);
 
+  // 🔒 CRITICAL: Prevent duplicate connections
+  const isConnectingRef = useRef(false);
+
   // --- Initialization ---
   useEffect(() => {
     try {
@@ -206,10 +209,14 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
   }, [transcripts, mode]);
 
   const cleanup = () => {
+    console.log('🔴 CLEANUP - Disconnecting voice...');
+    isConnectingRef.current = false;
+
     if (sessionRef.current) {
       sessionRef.current.then((s: any) => {
         if (s.close) s.close();
       }).catch(() => { });
+      sessionRef.current = null;
     }
 
     if (processorRef.current) {
@@ -333,8 +340,18 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
   };
 
   const connect = async () => {
+    // 🔒 GUARD: Prevent duplicate connections
+    if (isConnectingRef.current || sessionRef.current) {
+      console.warn('⚠️ Already connecting or connected. Skipping duplicate connection attempt.');
+      return;
+    }
+
+    console.log('🚀 Starting NEW connection...');
+    isConnectingRef.current = true;
+
     if (!aiRef.current) {
       setConnectionError("AI Client not initialized. Missing API Key?");
+      isConnectingRef.current = false;
       return;
     }
     setConnectionError(null);
@@ -364,9 +381,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
         },
         callbacks: {
           onopen: () => {
-            console.log("Gemini Live Connected");
+            console.log("✅ Gemini Live Connected Successfully");
             setIsConnected(true);
             setConnectionError(null);
+            isConnectingRef.current = false;
 
             const source = inputCtx.createMediaStreamSource(stream);
             sourceNodeRef.current = source;
@@ -520,6 +538,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       console.error("Connection failed", err);
       setConnectionError(err.message || "Failed to connect to Gemini Live");
       setIsConnected(false);
+      isConnectingRef.current = false;
     }
   };
 
@@ -604,7 +623,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
   };
 
   const handleClose = () => {
+    console.log('🔒 User closed Voice Chat');
     cleanup();
+    // Force reset all refs
+    sessionRef.current = null;
+    isConnectingRef.current = false;
     setMode('HIDDEN');
   };
 
