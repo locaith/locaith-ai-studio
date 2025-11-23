@@ -156,6 +156,8 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
   const [progress, setProgress] = useState<number>(0);
   const [isHoldPlaying, setIsHoldPlaying] = useState<boolean>(false);
   const holdAudioRef = useRef<HTMLAudioElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastTriggerRef = useRef<number | null>(null);
 
   // Integration State
   const [activePopover, setActivePopover] = useState<'github' | 'supabase' | null>(null);
@@ -166,8 +168,7 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
   const [githubUser, setGithubUser] = useState<any>(null);
   const [githubRepoName, setGithubRepoName] = useState('');
   const [githubRepoPrivate, setGithubRepoPrivate] = useState(true);
-  const [githubAuthData, setGithubAuthData] = useState<{ user_code: string; verification_uri: string; device_code: string; interval: number } | null>(null);
-  const pollingRef = useRef<number | null>(null);
+
 
   // Auth Waiting States
   const [isGithubAuthing, setIsGithubAuthing] = useState(false);
@@ -179,6 +180,17 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
 
   // Activity tracking
   const { trackActivity } = useUserActivity();
+
+  const handleStop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      setMessages(prev => prev.map(msg =>
+        msg.isStreaming ? { ...msg, isStreaming: false, content: msg.content + "\n\n[Stopped by user]" } : msg
+      ));
+    }
+  }, []);
 
   const handleSend = useCallback(async (content: string) => {
     const userMsg: Message = {
@@ -209,7 +221,12 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
       await holdAudioRef.current.play();
       setIsHoldPlaying(true);
     } catch { }
-    setActiveTab(TabOption.PREVIEW);
+    setActiveTab(TabOption.CODE); // Show code while generating
+
+    // Create new abort controller
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       const stream = streamWebsiteCode(content, generatedCode);
@@ -220,6 +237,7 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
       let lastBuildCount = 0;
 
       for await (const chunk of stream) {
+        if (abortController.signal.aborted) break;
         fullResponse += chunk;
         const codeStartIndex = fullResponse.indexOf('<!DOCTYPE html>');
 
@@ -256,6 +274,10 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
       setMessages(prev => prev.map(msg =>
         msg.id === assistantMsgId ? { ...msg, isStreaming: false } : msg
       ));
+
+      if (!abortController.signal.aborted) {
+        setActiveTab(TabOption.PREVIEW); // Switch to preview when done
+      }
 
       const successMsg: Message = {
         id: (Date.now() + 2).toString(),
@@ -318,9 +340,16 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
 
   useEffect(() => {
     if (initialPrompt && (!hasStarted || messages.length === 0)) {
-      handleStart(initialPrompt);
+      // Only start if not already started
+      if (!hasStarted) {
+        handleStart(initialPrompt);
+      }
     } else if (initialPrompt && typeof trigger === 'number') {
-      handleSend(initialPrompt);
+      // Prevent duplicate triggers
+      if (trigger !== lastTriggerRef.current) {
+        lastTriggerRef.current = trigger;
+        handleSend(initialPrompt);
+      }
     }
   }, [initialPrompt, trigger]);
 
@@ -328,67 +357,72 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
     if (projectName) setGithubRepoName(projectName);
   }, [projectName]);
 
+  // --- GitHub OAuth Callback Handler ---
+  useEffect(() => {
+    const checkGithubCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+
+      if (code && !githubToken) {
+        setIsGithubAuthing(true);
+        setActivePopover('github'); // Open popover to show status
+
+        // Clean URL immediately
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        try {
+          const { data, error } = await supabase.functions.invoke('github-auth', {
+            body: { code }
+          });
+
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+
+          setGithubToken(data.access_token);
+          setGithubUser(data.user);
+          setGithubStatus('connected');
+
+          // Save to local storage for persistence
+          localStorage.setItem('github_token', data.access_token);
+          localStorage.setItem('github_user', JSON.stringify(data.user));
+
+        } catch (e) {
+          console.error("GitHub Auth Error:", e);
+          alert("Failed to authenticate with GitHub. Please try again.");
+        } finally {
+          setIsGithubAuthing(false);
+        }
+      }
+    };
+
+    // Check for existing session
+    const storedToken = localStorage.getItem('github_token');
+    const storedUser = localStorage.getItem('github_user');
+    if (storedToken && storedUser) {
+      setGithubToken(storedToken);
+      setGithubUser(JSON.parse(storedUser));
+      setGithubStatus('connected');
+    }
+
+    checkGithubCallback();
+  }, []);
+
   // --- Auth Handlers ---
 
   const handleGithubLogin = async () => {
     if (!githubClientId) {
-      const width = 600;
-      const height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
-      window.open('https://github.com/login', 'GithubAuth', `width=${width},height=${height},top=${top},left=${left}`);
+      alert("Missing VITE_GITHUB_CLIENT_ID in environment variables.");
       return;
     }
-    setIsGithubAuthing(true);
-    try {
-      const res = await fetch('https://github.com/login/device/code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ client_id: githubClientId, scope: 'repo' })
-      });
-      if (!res.ok) {
-        setIsGithubAuthing(false);
-        return;
-      }
-      const data = await res.json();
-      setGithubAuthData({ user_code: data.user_code, verification_uri: data.verification_uri, device_code: data.device_code, interval: data.interval });
-      const width = 600;
-      const height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
-      window.open(data.verification_uri, 'GithubAuth', `width=${width},height=${height},top=${top},left=${left}`);
-      if (pollingRef.current) window.clearInterval(pollingRef.current);
-      pollingRef.current = window.setInterval(async () => {
-        try {
-          const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify({ client_id: githubClientId, device_code: data.device_code, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' })
-          });
-          if (!tokenRes.ok) return;
-          const tokenData = await tokenRes.json();
-          if (tokenData.access_token) {
-            if (pollingRef.current) window.clearInterval(pollingRef.current);
-            setGithubToken(tokenData.access_token);
-            setIsGithubAuthing(false);
-            setGithubStatus('connected');
-            const uRes = await fetch('https://api.github.com/user', { headers: { Authorization: `Bearer ${tokenData.access_token}`, Accept: 'application/vnd.github+json' } });
-            if (uRes.ok) {
-              const u = await uRes.json();
-              setGithubUser(u);
-            }
-            trackActivity({
-              feature_type: 'web-builder',
-              action_type: 'update',
-              action_details: { description: 'Connected GitHub account' }
-            });
-          }
-        } catch { }
-      }, (data.interval || 5) * 1000);
-    } catch {
-      setIsGithubAuthing(false);
-    }
+
+    // Standard OAuth Redirect Flow
+    const redirectUri = window.location.origin; // Current URL
+    const scope = 'repo read:user';
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`;
+
+    window.location.href = authUrl;
   };
+
 
   const handleGithubSync = async () => {
     if (!githubToken) return;
@@ -598,7 +632,7 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
         </div>
 
         <div className="p-4 bg-white/50 border-t border-gray-200">
-          <ChatInput onSend={handleSend} isLoading={isLoading} />
+          <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isLoading} />
         </div>
 
         {/* Mobile FAB: Open Preview Fullscreen */}
@@ -650,21 +684,15 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
                       )}
                       {!isGithubAuthing && (
                         <button onClick={handleGithubLogin} className="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
                           <span>Connect GitHub Account</span>
                         </button>
                       )}
-                      {isGithubAuthing && githubAuthData && (
-                        <div className="space-y-2 bg-gray-50 rounded-lg border border-dashed border-gray-300 p-3">
-                          <div className="text-xs font-semibold text-gray-900">Enter code</div>
-                          <div className="flex items-center gap-2">
-                            <div className="px-3 py-1.5 bg-white border border-gray-200 rounded font-mono text-xs text-gray-900">{githubAuthData.user_code}</div>
-                            <button onClick={() => navigator.clipboard.writeText(githubAuthData.user_code)} className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">Copy</button>
-                          </div>
-                          <a href={githubAuthData.verification_uri} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-600 hover:underline flex items-center gap-1">
-                            Verify on GitHub
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                          </a>
-                          <div className="text-[10px] text-gray-400">Waiting for approval...</div>
+                      {isGithubAuthing && (
+                        <div className="flex flex-col items-center justify-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                          <div className="animate-spin w-6 h-6 border-2 border-gray-900 border-t-transparent rounded-full mb-2"></div>
+                          <p className="text-sm font-medium text-gray-900">Authenticating...</p>
+                          <p className="text-xs text-gray-500">Please complete login in the popup</p>
                         </div>
                       )}
                     </div>

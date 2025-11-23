@@ -148,6 +148,7 @@ THÔNG TIN CÔNG TY:
 const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFillAndGenerate, lastUserInteraction }) => {
   // --- State ---
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false); // UI Loading state
   const [isMuted, setIsMuted] = useState(false);
   const [audioVolume, setAudioVolume] = useState(0); // 0 to 1
   const [showSettings, setShowSettings] = useState(false);
@@ -181,6 +182,8 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
 
   // --- Initialization ---
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
@@ -190,7 +193,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       aiRef.current = new GoogleGenAI({ apiKey });
 
       if (!isConnected) {
-        connect();
+        // DELAY: Wait 3s before auto-connecting to prevent lag on load
+        console.log('⏳ Waiting 3s before auto-connecting voice...');
+        timeoutId = setTimeout(() => {
+          connect();
+        }, 3000);
       }
     } catch (e: any) {
       console.error("Initialization error:", e);
@@ -198,7 +205,30 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
     }
 
     return () => {
+      clearTimeout(timeoutId);
       cleanup();
+    };
+  }, []);
+
+  // 🔊 GLOBAL AUTOPLAY FIX: Resume AudioContext on ANY user interaction
+  useEffect(() => {
+    const handleInteraction = () => {
+      if (inputAudioContextRef.current?.state === 'suspended') {
+        inputAudioContextRef.current.resume();
+      }
+      if (outputAudioContextRef.current?.state === 'suspended') {
+        outputAudioContextRef.current.resume();
+      }
+    };
+
+    window.addEventListener('click', handleInteraction);
+    window.addEventListener('keydown', handleInteraction);
+    window.addEventListener('touchstart', handleInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
     };
   }, []);
 
@@ -348,6 +378,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
 
     console.log('🚀 Starting NEW connection...');
     isConnectingRef.current = true;
+    setIsConnecting(true); // Show spinner
 
     if (!aiRef.current) {
       setConnectionError("AI Client not initialized. Missing API Key?");
@@ -363,6 +394,15 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       inputAudioContextRef.current = inputCtx;
       outputAudioContextRef.current = outputCtx;
       nextStartTimeRef.current = outputCtx.currentTime;
+
+      // 🔊 AUTOPLAY FIX: Attempt to resume, but DO NOT await (prevents hanging)
+      if (outputCtx.state === 'suspended') {
+        console.log('🔊 Resuming suspended AudioContext...');
+        outputCtx.resume().catch(e => console.warn("Auto-resume failed:", e));
+      }
+      if (inputCtx.state === 'suspended') {
+        inputCtx.resume().catch(e => console.warn("Auto-resume failed:", e));
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
@@ -385,6 +425,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
             setIsConnected(true);
             setConnectionError(null);
             isConnectingRef.current = false;
+            setIsConnecting(false);
 
             const source = inputCtx.createMediaStreamSource(stream);
             sourceNodeRef.current = source;
@@ -436,6 +477,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
                   });
                 } else if (fc.name === 'fill_prompt_and_generate') {
                   const prompt = (fc.args as any).prompt;
+
+                  // CRITICAL: Minimize to widget when generating
+                  setMode('WIDGET');
+
                   onFillAndGenerate(prompt);
                   sessionPromise.then(session => {
                     session.sendToolResponse({
@@ -539,6 +584,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       setConnectionError(err.message || "Failed to connect to Gemini Live");
       setIsConnected(false);
       isConnectingRef.current = false;
+      setIsConnecting(false);
     }
   };
 
@@ -776,6 +822,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
             <div className="flex items-center space-x-2 text-red-400 bg-red-500/10 px-4 py-1 rounded-full border border-red-500/20">
               <AlertTriangle className="w-4 h-4" />
               <span className="text-xs font-medium">{connectionError}</span>
+            </div>
+          ) : isConnecting ? (
+            <div className="flex items-center space-x-2 text-blue-400 bg-blue-500/10 px-4 py-1 rounded-full border border-blue-500/20">
+              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-xs font-medium">Connecting to Voice...</span>
             </div>
           ) : isConnected ? (
             <p className="text-gray-400 text-sm animate-pulse flex items-center justify-center gap-2">
