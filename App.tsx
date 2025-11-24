@@ -9,6 +9,7 @@ const ComposeFeature = React.lazy(() => import('./components/ComposeFeature').th
 const SearchFeature = React.lazy(() => import('./components/SearchFeature').then(m => ({ default: m.SearchFeature })));
 const ContentAutomationFeature = React.lazy(() => import('./components/ContentAutomationFeature').then(m => ({ default: m.ContentAutomationFeature })));
 const DesignFeature = React.lazy(() => import('./components/DesignFeature').then(m => ({ default: m.DesignFeature })));
+const DashboardFeature = React.lazy(() => import('./components/DashboardFeature').then(m => ({ default: m.DashboardFeature })));
 import { AuthModal } from './components/AuthModal';
 import { useAuth } from './src/hooks/useAuth';
 import { RecentHistorySidebar } from './components/RecentHistorySidebar';
@@ -158,6 +159,7 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
   const holdAudioRef = useRef<HTMLAudioElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastTriggerRef = useRef<number | null>(null);
+  const ignoreNextTriggerRef = useRef<boolean>(false);
 
   // Integration State
   const [activePopover, setActivePopover] = useState<'github' | 'supabase' | null>(null);
@@ -192,11 +194,20 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
     }
   }, []);
 
+  const lastUserPromptRef = useRef<{ text: string; time: number } | null>(null);
+
   const handleSend = useCallback(async (content: string) => {
+    const normalized = String(content || '').trim();
+    const now = Date.now();
+    const last = lastUserPromptRef.current;
+    if (last && last.text === normalized && (now - last.time) < 5000) {
+      return;
+    }
+    lastUserPromptRef.current = { text: normalized, time: now };
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content
+      content: normalized
     };
 
     const assistantMsgId = (Date.now() + 1).toString();
@@ -207,7 +218,14 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
       isStreaming: true
     };
 
-    setMessages(prev => [...prev, userMsg, assistantMsg]);
+    setMessages(prev => {
+      const last = prev[prev.length - 1];
+      const shouldAddUser = !(last && last.role === 'user' && last.content.trim() === normalized);
+      const next = [...prev];
+      if (shouldAddUser) next.push(userMsg);
+      next.push(assistantMsg);
+      return next;
+    });
     setIsLoading(true);
     setProgress(10);
     // Start hold music
@@ -229,7 +247,7 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
     abortControllerRef.current = abortController;
 
     try {
-      const stream = streamWebsiteCode(content, generatedCode);
+    const stream = streamWebsiteCode(normalized, generatedCode);
 
       let fullResponse = '';
       let codePart = '';
@@ -339,19 +357,24 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
   };
 
   useEffect(() => {
-    if (initialPrompt && (!hasStarted || messages.length === 0)) {
-      // Only start if not already started
-      if (!hasStarted) {
-        handleStart(initialPrompt);
+    if (!initialPrompt) return;
+    if (!hasStarted || messages.length === 0) {
+      ignoreNextTriggerRef.current = true;
+      handleStart(initialPrompt);
+      return;
+    }
+    if (typeof trigger === 'number') {
+      if (ignoreNextTriggerRef.current) {
+        ignoreNextTriggerRef.current = false;
+        lastTriggerRef.current = trigger;
+        return;
       }
-    } else if (initialPrompt && typeof trigger === 'number') {
-      // Prevent duplicate triggers
       if (trigger !== lastTriggerRef.current) {
         lastTriggerRef.current = trigger;
         handleSend(initialPrompt);
       }
     }
-  }, [initialPrompt, trigger]);
+  }, [initialPrompt, trigger, hasStarted, messages.length]);
 
   useEffect(() => {
     if (projectName) setGithubRepoName(projectName);
@@ -1143,6 +1166,7 @@ const App: React.FC = () => {
       COMPOSE: 'text',
       SEARCH: 'search',
       MARKETING: 'automation',
+      DASHBOARD: 'dashboard',
     };
     const target = map[String(view).toUpperCase()] || 'web-builder';
     setActiveFeature(target);
@@ -1155,9 +1179,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeFeature === 'voice') {
-      setVoiceMode('FULL');
-    }
+    setVoiceMode(activeFeature === 'voice' ? 'FULL' : 'WIDGET');
   }, [activeFeature]);
 
   useEffect(() => {
@@ -1261,6 +1283,7 @@ const App: React.FC = () => {
 
             <div className="flex-1 relative overflow-hidden">
               <Suspense fallback={<div className="h-full w-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div></div>}>
+                {activeFeature === 'dashboard' && <DashboardFeature onOpenProject={() => { setActiveFeature('web-builder'); }} onNewProject={() => { setActiveFeature('web-builder'); }} />}
                 {activeFeature === 'web-builder' && <WebBuilderFeature initialPrompt={voicePrompt} trigger={voiceTrigger} />}
                 {activeFeature === 'design' && <DesignFeature />}
                 {activeFeature === 'text' && <ComposeFeature />}

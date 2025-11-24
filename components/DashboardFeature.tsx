@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../src/lib/supabase';
 import { useAuth } from '../src/hooks/useAuth';
-import { Clock, Globe, Github, Trash2, ExternalLink, Layout, Plus } from 'lucide-react';
+import { Clock, Globe, Github, Trash2, ExternalLink, Layout, Plus, Activity, Server, BarChart3 } from 'lucide-react';
 
 interface Website {
     id: string;
@@ -13,30 +13,41 @@ interface Website {
 }
 
 export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => void, onNewProject: () => void }> = ({ onOpenProject, onNewProject }) => {
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const [websites, setWebsites] = useState<Website[]>([]);
+    const [deployments, setDeployments] = useState<any[]>([]);
+    const [activities, setActivities] = useState<any[]>([]);
+    const [stats, setStats] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (user) {
-            fetchWebsites();
+            fetchAll();
+        } else {
+            setLoading(false);
         }
     }, [user]);
 
-    const fetchWebsites = async () => {
+    const fetchAll = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabase
-                .from('websites')
-                .select('*')
-                .eq('user_id', user?.id)
-                .order('created_at', { ascending: false });
+            const [wRes, aRes, dRes, sRes] = await Promise.all([
+                supabase.from('websites').select('*').eq('user_id', user?.id).order('created_at', { ascending: false }),
+                supabase.from('user_activity_history').select('*').eq('user_id', user?.id).order('created_at', { ascending: false }).limit(25),
+                supabase.from('deployments').select('*').order('deployed_at', { ascending: false }).limit(25),
+                supabase.rpc('get_user_stats', { user_uuid: user?.id })
+            ]);
 
-            if (error) throw error;
-            setWebsites(data || []);
+            if (wRes.error) throw wRes.error;
+            if (aRes.error) throw aRes.error;
+            if (dRes.error) throw dRes.error;
+            setWebsites(wRes.data || []);
+            setActivities(aRes.data || []);
+            setDeployments(dRes.data || []);
+            setStats(sRes.data || null);
         } catch (err: any) {
-            console.error('Error fetching websites:', err);
+            console.error('Error loading dashboard:', err);
             setError(err.message);
         } finally {
             setLoading(false);
@@ -90,22 +101,39 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
         );
     }
 
+    if (!isAuthenticated) {
+        return (
+            <div className="h-full w-full overflow-y-auto bg-gray-50 p-8">
+                <div className="max-w-3xl mx-auto">
+                    <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+                        <h2 className="text-2xl font-bold text-gray-900">Đăng nhập để xem Dashboard</h2>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const activeCount = useMemo(() => websites.filter(w => w.status === 'active').length, [websites]);
+    const pausedCount = useMemo(() => websites.filter(w => w.status === 'paused').length, [websites]);
+
     return (
-        <div className="h-full w-full overflow-y-auto bg-gray-50 p-8">
+        <div className="h-full w-full overflow-y-auto bg-gray-50 p-4 md:p-8">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="flex justify-between items-end mb-10">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Projects</h1>
-                        <p className="text-gray-500">Manage and preview your AI-generated websites</p>
+                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+                        <p className="text-gray-500">Tổng quan dự án, hoạt động và lần triển khai gần đây</p>
                     </div>
-                    <button
-                        onClick={onNewProject}
-                        className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white px-5 py-2.5 rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                    >
-                        <Plus size={20} />
-                        <span className="font-medium">New Project</span>
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={onNewProject}
+                            className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-all shadow-lg"
+                        >
+                            <Plus size={18} />
+                            <span className="font-medium">Tạo dự án</span>
+                        </button>
+                    </div>
                 </div>
 
                 {error && (
@@ -113,6 +141,89 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                         {error}
                     </div>
                 )}
+
+                {/* Overview Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+                        <BarChart3 className="w-5 h-5 text-brand-600" />
+                        <div>
+                            <div className="text-xs text-gray-500">Tổng dự án</div>
+                            <div className="text-xl font-bold text-gray-900">{stats?.total_websites ?? websites.length}</div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+                        <Server className="w-5 h-5 text-emerald-600" />
+                        <div>
+                            <div className="text-xs text-gray-500">Tổng deployments</div>
+                            <div className="text-xl font-bold text-gray-900">{stats?.total_deployments ?? deployments.length}</div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+                        <Activity className="w-5 h-5 text-indigo-600" />
+                        <div>
+                            <div className="text-xs text-gray-500">Hoạt động gần nhất</div>
+                            <div className="text-sm font-medium text-gray-900">{stats?.last_activity_at ? new Date(stats.last_activity_at).toLocaleString() : '—'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Two Column: Activity & Deployments */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+                    <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                            <div className="font-semibold">Hoạt động gần đây</div>
+                            <div className="text-xs text-gray-400">{activities.length} mục</div>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto">
+                            {activities.length === 0 ? (
+                                <div className="p-6 text-center text-gray-500">Chưa có hoạt động</div>
+                            ) : (
+                                <div className="divide-y divide-gray-100">
+                                    {activities.map((a) => (
+                                        <div key={a.id} className="p-4 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
+                                                    <Activity className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-medium text-gray-900">{a.feature_type} • {a.action_type}</div>
+                                                    <div className="text-xs text-gray-500">{new Date(a.created_at).toLocaleString()}</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-gray-400">{a.action_details ? JSON.stringify(a.action_details).slice(0,60) + (JSON.stringify(a.action_details).length>60?'…':'') : ''}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="p-4 border-b border-gray-100 font-semibold">Triển khai gần đây</div>
+                        <div className="max-h-72 overflow-y-auto">
+                            {deployments.length === 0 ? (
+                                <div className="p-6 text-center text-gray-500">Chưa có deployment</div>
+                            ) : (
+                                <div className="divide-y divide-gray-100">
+                                    {deployments.slice(0,10).map((d) => (
+                                        <div key={d.id} className="p-4 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                                    <Server className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-medium text-gray-900">Version {d.version}</div>
+                                                    <div className="text-xs text-gray-500">{new Date(d.deployed_at).toLocaleString()}</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-gray-400">{String(d.website_id).slice(0,8)}…</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
                 {websites.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-200">
@@ -131,7 +242,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
                         {websites.map((site) => (
                             <div
                                 key={site.id}
