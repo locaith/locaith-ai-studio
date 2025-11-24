@@ -357,6 +357,41 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
     if (projectName) setGithubRepoName(projectName);
   }, [projectName]);
 
+  // Handle Preview Errors
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'PREVIEW_ERROR') {
+        const errorMsg = event.data.message;
+        // Only add error message if the last message isn't already an error
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.content.includes(errorMsg)) return prev;
+
+          return [...prev, {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: `⚠️ Runtime Error Detected:\n${errorMsg}`,
+            action: {
+              label: 'Fix Error',
+              type: 'FIX_ERROR',
+              payload: errorMsg
+            }
+          }];
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleAction = async (action: any) => {
+    if (action.type === 'FIX_ERROR') {
+      const fixPrompt = `I encountered this error: "${action.payload}". Please fix the code.`;
+      handleSend(fixPrompt);
+    }
+  };
+
   // --- GitHub OAuth Callback Handler ---
   useEffect(() => {
     const checkGithubCallback = async () => {
@@ -628,7 +663,7 @@ const WebBuilderFeature: React.FC<{ initialPrompt?: string; trigger?: number }> 
         </div>
 
         <div className="flex-1 overflow-hidden relative bg-gray-50/50">
-          <Sidebar messages={messages} />
+          <Sidebar messages={messages} onAction={handleAction} />
         </div>
 
         <div className="p-4 bg-white/50 border-t border-gray-200">
@@ -866,279 +901,8 @@ const GOOGLE_VOICES = [
   { id: 'en-US-Studio-M', name: 'Studio M', type: 'Studio', gender: 'Male' },
   { id: 'en-US-Studio-O', name: 'Studio O', type: 'Studio', gender: 'Female' },
   { id: 'en-US-Wavenet-A', name: 'WaveNet A', type: 'Standard', gender: 'Male' },
-  { id: 'en-US-Wavenet-D', name: 'WaveNet D', type: 'Standard', gender: 'Male' },
-  { id: 'vi-VN-Standard-A', name: 'Vietnamese A', type: 'Standard', gender: 'Female' },
-  { id: 'vi-VN-Standard-B', name: 'Vietnamese B', type: 'Standard', gender: 'Male' },
 ];
 
-const VoiceChatFeature: React.FC = () => {
-  const [selectedVoice, setSelectedVoice] = useState("en-US-Journey-D");
-  const [isListening, setIsListening] = useState(false);
-  const [status, setStatus] = useState("Ready");
-  const [voiceSpeed, setVoiceSpeed] = useState(1.0);
-  const [testText, setTestText] = useState("Hello! This is a test of the Locaith TTS system.");
-  const [isPlayingTest, setIsPlayingTest] = useState(false);
-  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-  const [voiceMessages, setVoiceMessages] = useState<{ role: 'user' | 'assistant', text: string }[]>([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const recRef = useRef<any>(null);
-  const { trackActivity } = useUserActivity();
-  const aiRef = useRef<any>(null);
-  if (!aiRef.current) aiRef.current = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
-
-  const browserLang = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : 'en-US';
-  const autoLang = browserLang.toLowerCase().startsWith('vi') ? 'vi-VN' : 'en-US';
-  const [conversationLang, setConversationLang] = useState<'auto' | 'en-US' | 'vi-VN'>('auto');
-  const effectiveLang = conversationLang === 'auto' ? autoLang : conversationLang;
-  const getLang = (_v: string) => effectiveLang;
-
-  const handleAssistantReply = async (userText: string) => {
-    try {
-      trackActivity({ feature_type: 'voice', action_type: 'create', action_details: { transcript: userText } });
-      const result = await aiRef.current.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: [{ role: 'user', parts: [{ text: userText }] }]
-      });
-      const replyText = result?.response?.text?.() || '';
-      if (replyText) {
-        setVoiceMessages(prev => [...prev, { role: 'assistant', text: replyText }]);
-        trackActivity({ feature_type: 'voice', action_type: 'generate', action_details: { reply: replyText } });
-        const voiceForLang = effectiveLang === 'vi-VN' ? 'vi-VN-Standard-A' : selectedVoice;
-        const { data, error } = await supabase.functions.invoke('tts', {
-          body: { text: replyText, voiceName: voiceForLang, speakingRate: voiceSpeed }
-        });
-        if (!error && data?.audioContent) {
-          setIsSpeaking(true);
-          const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-          audio.onended = () => setIsSpeaking(false);
-          audio.onerror = () => setIsSpeaking(false);
-          await audio.play();
-        }
-      }
-    } catch (_e) { }
-  };
-
-  const startRecognition = () => {
-    const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      setStatus('Speech unavailable');
-      return;
-    }
-    const rec = new SR();
-    rec.lang = getLang(selectedVoice);
-    rec.continuous = true;
-    rec.interimResults = false;
-    rec.onresult = async (e: any) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) {
-          const text = r[0]?.transcript?.trim();
-          if (text) {
-            setVoiceMessages(prev => [...prev, { role: 'user', text }]);
-            await handleAssistantReply(text);
-          }
-        }
-      }
-    };
-    rec.onend = () => { if (isListening) rec.start(); };
-    recRef.current = rec;
-    rec.start();
-  };
-
-  const toggleListen = async () => {
-    if (isListening) {
-      setIsListening(false);
-      setStatus("Ready");
-      if (audioStream) {
-        audioStream.getTracks().forEach(t => t.stop());
-        setAudioStream(null);
-      }
-      try { recRef.current && recRef.current.stop(); } catch { }
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setAudioStream(stream);
-      setIsListening(true);
-      setStatus("Listening...");
-      startRecognition();
-    } catch (e) {
-      setStatus("Mic permission denied");
-    }
-  };
-
-  const handleTestVoice = async () => {
-    if (!testText.trim()) return;
-    setIsPlayingTest(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('tts', {
-        body: { text: testText.trim(), voiceName: selectedVoice, speakingRate: voiceSpeed }
-      });
-      if (error) throw error;
-      if (!data?.audioContent) throw new Error('No audio');
-      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-      audio.onended = () => setIsPlayingTest(false);
-      audio.onerror = () => setIsPlayingTest(false);
-      await audio.play();
-    } catch (e) {
-      const duration = Math.min(5000, testText.length * 50);
-      setTimeout(() => setIsPlayingTest(false), duration);
-    }
-  };
-
-  return (
-    <div className="flex h-full bg-transparent text-gray-900 animate-fade-in-up overflow-hidden">
-      {/* Main Visualizer Area */}
-      <div className="flex-1 flex flex-col items-center justify-center relative">
-
-        {/* Visualization Circle */}
-        <div className="relative z-10 mb-12">
-          {(isListening || isPlayingTest) && (
-            <>
-              <div className="absolute inset-0 bg-brand-500/30 rounded-full animate-ping"></div>
-              <div className="absolute inset-0 bg-brand-500/20 rounded-full animate-pulse delay-75 transform scale-150"></div>
-            </>
-          )}
-          <div className={`w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 backdrop-blur-md ${isListening || isPlayingTest ? 'bg-gradient-to-br from-brand-500 to-accent-600 scale-110' : 'bg-gray-100/80 border border-gray-200'}`}>
-            {isPlayingTest ? (
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={`${isListening ? 'text-white' : 'text-gray-400'}`}>
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>
-              </svg>
-            )}
-          </div>
-        </div>
-
-        <h2 className="text-3xl font-bold tracking-tight mb-2 drop-shadow-sm">{isPlayingTest || isSpeaking ? 'Speaking...' : status}</h2>
-        <p className="text-gray-500 mb-8 max-w-md text-center bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-          {isPlayingTest ? 'Testing voice configuration...' : 'Start a natural conversation. The AI will respond with human-like intonation.'}
-        </p>
-
-        <button
-          onClick={toggleListen}
-          disabled={isPlayingTest}
-          className={`px-8 py-4 rounded-full font-medium text-lg transition-all shadow-lg flex items-center gap-3 ${isListening
-            ? 'bg-red-500 text-white hover:bg-red-600'
-            : 'bg-gray-900 text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed'
-            }`}
-        >
-          {isListening ? (
-            <>
-              <span className="animate-pulse w-3 h-3 bg-white rounded-full"></span>
-              Turn Off
-            </>
-          ) : (
-            <>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-              Voice On
-            </>
-          )}
-        </button>
-        <div className="mt-8 w-full max-w-xl space-y-3 px-6">
-          {voiceMessages.slice(-8).map((m, i) => (
-            <div key={i} className={`text-sm rounded-lg px-3 py-2 border ${m.role === 'assistant' ? 'bg-brand-50 border-brand-200 text-brand-900' : 'bg-gray-50 border-gray-200 text-gray-900'}`}>
-              <span className="font-mono text-[10px] mr-2 uppercase tracking-wide">{m.role}</span>
-              <span>{m.text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Right Settings Panel */}
-      <div className="w-96 border-l border-gray-200 bg-white/50 backdrop-blur-md flex flex-col overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          <h3 className="font-semibold text-gray-900">Voice Configuration</h3>
-        </div>
-
-        <div className="p-6 space-y-8">
-          {/* Model Selection */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Google Cloud TTS Model</label>
-            <div className="relative">
-              <select
-                value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
-                className="w-full appearance-none bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                {['Expressive', 'Pro', 'Studio', 'Standard'].map(type => (
-                  <optgroup key={type} label={`${type} Voices`}>
-                    {GOOGLE_VOICES.filter(v => v.type === type).map(v => (
-                      <option key={v.id} value={v.id}>{v.name} ({v.gender})</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Speed Control */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Speaking Rate</label>
-              <span className="text-xs font-mono text-brand-600">{voiceSpeed}x</span>
-            </div>
-            <input
-              type="range"
-              min="0.25"
-              max="4.0"
-              step="0.25"
-              value={voiceSpeed}
-              onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
-            />
-            <div className="flex justify-between mt-1 text-[10px] text-gray-400">
-              <span>Slow</span>
-              <span>Normal</span>
-              <span>Fast</span>
-            </div>
-          </div>
-
-          {/* Test Area */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Test Voice</label>
-            <textarea
-              value={testText}
-              onChange={(e) => setTestText(e.target.value.slice(0, 1000))}
-              placeholder="Enter text to test the voice..."
-              className="w-full h-24 bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-900 resize-none focus:outline-none focus:border-brand-500 transition-colors"
-            />
-            <div className="flex justify-between items-center mt-2">
-              <span className="text-[10px] text-gray-500">{testText.length}/1000 chars</span>
-              <button
-                onClick={handleTestVoice}
-                disabled={isPlayingTest || !testText.trim()}
-                className="px-4 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:hover:bg-brand-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-2"
-              >
-                {isPlayingTest ? (
-                  <>
-                    <span className="animate-spin w-3 h-3 border-2 border-current border-t-transparent rounded-full"></span>
-                    Playing...
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                    Play Test
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-6 mt-auto">
-          <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-yellow-800">
-            <strong>System Note:</strong> Voice synthesis runs on Google Cloud. Ensure credentials are active in the Settings panel before use.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const SettingsFeature: React.FC = () => {
   const { user, signOut, signInWithGoogle, isAuthenticated } = useAuth();

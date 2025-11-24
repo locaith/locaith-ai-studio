@@ -180,10 +180,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
   // 🔒 CRITICAL: Prevent duplicate connections
   const isConnectingRef = useRef(false);
 
+  // 🛡️ DEBOUNCE: Prevent duplicate prompt generation
+  const lastProcessedPromptRef = useRef<{ text: string, time: number } | null>(null);
+
   // --- Initialization ---
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
@@ -191,21 +192,13 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
         return;
       }
       aiRef.current = new GoogleGenAI({ apiKey });
-
-      if (!isConnected) {
-        // DELAY: Wait 3s before auto-connecting to prevent lag on load
-        console.log('⏳ Waiting 3s before auto-connecting voice...');
-        timeoutId = setTimeout(() => {
-          connect();
-        }, 3000);
-      }
+      // MANUAL START: No auto-connect here. User must click start.
     } catch (e: any) {
       console.error("Initialization error:", e);
       setConnectionError(e.message || "Failed to initialize AI");
     }
 
     return () => {
-      clearTimeout(timeoutId);
       cleanup();
     };
   }, []);
@@ -477,6 +470,26 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
                   });
                 } else if (fc.name === 'fill_prompt_and_generate') {
                   const prompt = (fc.args as any).prompt;
+
+                  // 🛡️ DEBOUNCE CHECK
+                  const now = Date.now();
+                  if (lastProcessedPromptRef.current &&
+                    lastProcessedPromptRef.current.text === prompt &&
+                    now - lastProcessedPromptRef.current.time < 5000) { // Increased to 5s
+                    console.warn("Duplicate prompt ignored:", prompt);
+                    // Still send success response to clear the tool call
+                    sessionPromise.then(session => {
+                      session.sendToolResponse({
+                        functionResponses: {
+                          id: fc.id,
+                          name: fc.name,
+                          response: { result: 'success' }
+                        }
+                      });
+                    });
+                    continue;
+                  }
+                  lastProcessedPromptRef.current = { text: prompt, time: now };
 
                   // CRITICAL: Minimize to widget when generating
                   setMode('WIDGET');
@@ -817,50 +830,47 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       <div className="flex-1 flex flex-col items-center justify-center relative">
 
         {/* Status Text */}
-        <div className="text-center h-8 flex flex-col items-center justify-center mb-10">
-          {connectionError ? (
-            <div className="flex items-center space-x-2 text-red-400 bg-red-500/10 px-4 py-1 rounded-full border border-red-500/20">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-xs font-medium">{connectionError}</span>
-            </div>
-          ) : isConnecting ? (
-            <div className="flex items-center space-x-2 text-blue-400 bg-blue-500/10 px-4 py-1 rounded-full border border-blue-500/20">
-              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-xs font-medium">Connecting to Voice...</span>
-            </div>
-          ) : isConnected ? (
-            <p className="text-gray-400 text-sm animate-pulse flex items-center justify-center gap-2">
-              {audioVolume > 0.05 ? (
-                <span className="text-blue-400 font-medium">Listening / Speaking...</span>
-              ) : (
-                "Listening..."
-              )}
-            </p>
-          ) : (
-            <p className="text-gray-500 text-sm">Ready to connect</p>
-          )}
-        </div>
-
-        {/* Transcripts Container */}
-        <div className="w-full max-w-2xl px-6 max-h-[400px] overflow-y-auto scrollbar-hide mask-linear-fade">
-          <div className="space-y-3 flex flex-col justify-end min-h-full pb-4">
-            {transcripts.length === 0 && isConnected && (
-              <div className="text-center text-gray-600 text-xs italic">Conversation will appear here...</div>
+        {connectionError ? (
+          <div className="flex items-center space-x-2 text-red-400 bg-red-500/10 px-4 py-1 rounded-full border border-red-500/20">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-xs font-medium">{connectionError}</span>
+          </div>
+        ) : isConnecting ? (
+          <div className="flex items-center space-x-2 text-blue-400 bg-blue-500/10 px-4 py-1 rounded-full border border-blue-500/20">
+            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-xs font-medium">Connecting to Voice...</span>
+          </div>
+        ) : isConnected ? (
+          <p className="text-gray-400 text-sm animate-pulse flex items-center justify-center gap-2">
+            {audioVolume > 0.05 ? (
+              <span className="text-blue-400 font-medium">Listening / Speaking...</span>
+            ) : (
+              "Listening..."
             )}
-            {transcripts.map((t) => (
-              <div key={t.id} className={`flex ${t.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`
+          </p>
+        ) : (
+          <p className="text-gray-500 text-sm">Ready to connect</p>
+        )}
+      </div>
+
+      {/* Transcripts Container */}
+      <div className="w-full max-w-2xl px-6 max-h-[400px] overflow-y-auto scrollbar-hide mask-linear-fade">
+        <div className="space-y-3 flex flex-col justify-end min-h-full pb-4">
+          {transcripts.length === 0 && isConnected && (
+            <div className="text-center text-gray-600 text-xs italic">Conversation will appear here...</div>
+          )}
+          {transcripts.map((t) => (
+            <div key={t.id} className={`flex ${t.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`
                          max-w-[80%] px-4 py-2 rounded-2xl text-sm
                          ${t.sender === 'user' ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30' : 'bg-gray-800/50 text-gray-200 border border-gray-700'}
                       `}>
-                  {t.text}
-                </div>
+                {t.text}
               </div>
-            ))}
-            <div ref={scrollEndRef} />
-          </div>
+            </div>
+          ))}
+          <div ref={scrollEndRef} />
         </div>
-
       </div>
 
       {/* --- Bottom Control Bar --- */}

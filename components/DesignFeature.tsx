@@ -724,9 +724,19 @@ export const DesignFeature: React.FC = () => {
             // Construct a specific prompt for the model
             let promptText = "";
             if (type === 'fashion') {
-                promptText = `Đây là ảnh gốc của một người mẫu. Hãy chỉnh sửa ảnh này để người mẫu mặc/đeo sản phẩm sau: ${description}. Phong cách: ${styleOption}. Bối cảnh/Môi trường: ${contextDescription}. Tỉ lệ khung hình mong muốn: ${aspectRatio}. Giữ nguyên tư thế và khuôn mặt người mẫu, chỉ thay đổi trang phục/phụ kiện và nền nếu được yêu cầu. Đảm bảo ảnh trông thật và chất lượng cao.`;
+                promptText = `Đây là ảnh gốc của một người mẫu. Hãy TẠO RA MỘT HÌNH ẢNH MỚI dựa trên dáng người này. Người mẫu đang mặc/đeo sản phẩm: ${description}. Phong cách: ${styleOption}. Bối cảnh: ${contextDescription}. Tỉ lệ khung hình: ${aspectRatio}. Giữ nguyên tư thế, nhưng hãy render lại trang phục và ánh sáng thật tự nhiên, không cắt ghép.`;
             } else {
-                promptText = `Đây là ảnh gốc của một căn phòng. Hãy thiết kế lại nội thất căn phòng này theo phong cách: ${styleOption}. Chi tiết đồ nội thất: ${description}. Chi tiết không gian: ${contextDescription}. Tỉ lệ khung hình mong muốn: ${aspectRatio}. Giữ nguyên cấu trúc tường và cửa sổ, chỉ thay đổi nội thất và trang trí. Đảm bảo ảnh trông thật và chất lượng cao.`;
+                promptText = `Hãy phân tích bố cục không gian, góc nhìn và cấu trúc tường/cửa của ảnh gốc. Dựa trên cấu trúc đó, hãy **TẠO RA MỘT HÌNH ẢNH MỚI HOÀN TOÀN** (Render lại từ đầu) cho căn phòng này.
+                
+                Yêu cầu thiết kế:
+                - Phong cách: ${styleOption}
+                - Nội thất chính: ${description}
+                - Chi tiết không gian: ${contextDescription}
+                - Tỉ lệ khung hình: ${aspectRatio}
+
+                QUAN TRỌNG:
+                1. Giữ nguyên góc nhìn và cấu trúc không gian của ảnh gốc.
+                2. KHÔNG được cắt ghép đè lên ảnh cũ. Hãy vẽ lại toàn bộ không gian sao cho ánh sáng, bóng đổ và vật liệu trông thật nhất (photorealistic).`;
             }
 
             if (secondaryImage) {
