@@ -25,12 +25,9 @@ export const useAuth = () => {
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
-          // ZOMBIE SESSION FIX: If error getting session, sign out immediately
-          console.error('Session error, clearing auth:', error)
-          await supabase.auth.signOut()
+          console.error('Session error:', error)
           if (mounted) {
             setUser(null)
-            setLoading(false)
           }
           return
         }
@@ -83,8 +80,6 @@ export const useAuth = () => {
         }
       } catch (error) {
         console.error('Critical auth error:', error)
-        // Force clean slate
-        await supabase.auth.signOut()
         if (mounted) setUser(null)
       } finally {
         if (mounted) setLoading(false)

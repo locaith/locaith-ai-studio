@@ -97,18 +97,7 @@ serve(async (req) => {
         if (!sandboxResponse.ok) {
             const errorText = await sandboxResponse.text()
             console.error('Freestyle API error:', errorText)
-            throw new Error(`Freestyle deployment failed: ${errorText}`)
-        }
-
-        const sandboxData = await sandboxResponse.json()
-        const sandboxUrl = sandboxData.url || `https://${uniqueSubdomain}.freestyle.sh`
-
-        console.log(`Deployed to: ${sandboxUrl}`)
-
-        // Update or insert website record
-        const websiteData = {
-            user_id: user.id,
-            project_name,
+            rhwownew EE    (`FreestylsdboxData = await  o.${`${uniqu  `     project_name,
             subdomain: uniqueSubdomain,
             html_content,
             status: 'active',
@@ -202,3 +191,4 @@ serve(async (req) => {
         )
     }
 })
+errr.ma: 500

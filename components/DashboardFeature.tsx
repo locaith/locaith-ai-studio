@@ -53,6 +53,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
     const [stats, setStats] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [visRefresh, setVisRefresh] = useState(0);
 
     useEffect(() => {
         let isMounted = true;
@@ -115,7 +116,19 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
         return () => {
             isMounted = false;
         };
-    }, [user, authLoading]);
+    }, [user, authLoading, visRefresh]);
+
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && isAuthenticated) {
+                setVisRefresh((v) => v + 1);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [isAuthenticated]);
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -164,7 +177,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
         return gradients[index];
     };
 
-    if (authLoading || (loading && isAuthenticated)) {
+    if (authLoading || loading) {
         return (
             <div className="h-full w-full flex items-center justify-center bg-gray-50">
                 <div className="flex flex-col items-center gap-4">

@@ -396,8 +396,11 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             });
 
             if (error) {
-                console.error('Deployment error:', error);
-                throw error;
+                const status = (error as any)?.context?.status;
+                const ctxBody = (error as any)?.context?.body;
+                const bodyText = typeof ctxBody === 'string' ? ctxBody : (ctxBody ? JSON.stringify(ctxBody) : '');
+                console.error('Deployment error:', { message: error.message, status, body: bodyText });
+                throw new Error(`${error.message}${status ? ` (HTTP ${status})` : ''}${bodyText ? `\n${bodyText}` : ''}`);
             }
 
             if (!data || !data.url) {
@@ -424,7 +427,8 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             });
         } catch (err: any) {
             console.error('Deploy failed:', err);
-            alert(`Deployment failed: ${err.message || 'Unknown error'}. Please try again.`);
+            const msg = err?.message || 'Unknown error';
+            alert(`Deployment failed: ${msg}. Please try again or check function logs.`);
         } finally {
             setIsDeploying(false);
         }
