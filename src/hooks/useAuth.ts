@@ -36,13 +36,20 @@ export const useAuth = () => {
         }
 
         if (session?.user && mounted) {
+          // CRITICAL: Ensure email exists (Google sometimes returns null if scope missing)
+          const userEmail = session.user.email || 'unknown@user.com';
+          const userName = session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.name ||
+            userEmail.split('@')[0] ||
+            'User';
+
           // Set user from session data
           setUser({
             id: session.user.id,
-            email: session.user.email!,
-            full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+            email: userEmail,
+            full_name: userName,
             avatar_url: session.user.user_metadata?.avatar_url,
-            user_metadata: session.user.user_metadata
+            user_metadata: session.user.user_metadata || {}
           })
 
           // Try to fetch profile (non-blocking, optional)
@@ -63,8 +70,8 @@ export const useAuth = () => {
               // Auto-create profile if missing
               await supabase.from('profiles').insert({
                 id: session.user.id,
-                email: session.user.email,
-                full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+                email: userEmail,
+                full_name: userName,
                 avatar_url: session.user.user_metadata?.avatar_url
               })
             }
@@ -88,7 +95,8 @@ export const useAuth = () => {
 
     // 2. Listen for auth state changes - HANDLE ALL EVENTS
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔐 Auth Event:', event, session?.user?.email)
+      const userEmail = session?.user?.email || 'unknown';
+      console.log('🔐 Auth Event:', event, userEmail)
 
       // CRITICAL: Handle sign out and errors
       if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
@@ -107,12 +115,18 @@ export const useAuth = () => {
 
       // Set user on sign in or token refresh
       if (session?.user && mounted && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        const safeEmail = session.user.email || 'unknown@user.com';
+        const safeName = session.user.user_metadata?.full_name ||
+          session.user.user_metadata?.name ||
+          safeEmail.split('@')[0] ||
+          'User';
+
         setUser({
           id: session.user.id,
-          email: session.user.email!,
-          full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+          email: safeEmail,
+          full_name: safeName,
           avatar_url: session.user.user_metadata?.avatar_url,
-          user_metadata: session.user.user_metadata
+          user_metadata: session.user.user_metadata || {}
         })
 
         // Try to fetch profile (non-blocking)

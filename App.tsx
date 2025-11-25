@@ -294,30 +294,9 @@ const App: React.FC = () => {
     return () => clearTimeout(timeout);
   }, [loading]);
 
-  // Global loading screen while checking auth (like GPT/Gemini)
-  if (loading && !isAuthReady) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <Logo className="w-16 h-16 mx-auto mb-4 animate-pulse" />
-          <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden mx-auto">
-            <div className="h-full bg-brand-500 rounded-full animate-[loading_1.5s_ease-in-out_infinite]" style={{ width: '30%' }}></div>
-          </div>
-          <p className="text-sm text-gray-500 mt-4">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
-  // If not authenticated, show login page
-  if (!isAuthenticated) {
-    return (
-      <LoginPage
-        onLoginSuccess={() => setView('app')}
-        onBack={() => setView('app')}
-      />
-    );
-  }
+
+
 
   const getBackgroundClass = () => {
     if (currentTheme === 'custom' && customBg) return '';
@@ -398,8 +377,31 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // If view is login, render LoginPage
-  if (view === 'login') {
+
+
+  // Close mobile menu when selecting a feature
+  const handleMobileSelect = (feature: FeatureType) => {
+    setActiveFeature(feature);
+    setIsMobileMenuOpen(false);
+  };
+
+  // Global loading screen while checking auth (like GPT/Gemini)
+  if (loading && !isAuthReady) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <Logo className="w-16 h-16 mx-auto mb-4 animate-pulse" />
+          <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden mx-auto">
+            <div className="h-full bg-brand-500 rounded-full animate-[loading_1.5s_ease-in-out_infinite]" style={{ width: '30%' }}></div>
+          </div>
+          <p className="text-sm text-gray-500 mt-4">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated or view is login, show login page
+  if (!isAuthenticated || view === 'login') {
     return (
       <LoginPage
         onLoginSuccess={() => setView('app')}
@@ -407,12 +409,6 @@ const App: React.FC = () => {
       />
     );
   }
-
-  // Close mobile menu when selecting a feature
-  const handleMobileSelect = (feature: FeatureType) => {
-    setActiveFeature(feature);
-    setIsMobileMenuOpen(false);
-  };
 
   return (
     <div className="h-screen w-screen overflow-hidden transition-colors duration-300 relative">
