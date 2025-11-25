@@ -462,6 +462,16 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
     return (
         <div className="flex h-full bg-transparent text-gray-900 overflow-hidden font-sans selection:bg-brand-500/30 animate-fade-in-up relative">
 
+            {/* Mobile Preview Toggle */}
+            {generatedCode && (
+                <button
+                    onClick={() => setPreviewModalOpen(true)}
+                    className="md:hidden absolute top-3 right-3 z-50 px-3 py-1.5 bg-white/90 border border-gray-200 rounded-lg text-xs text-gray-700 shadow"
+                >
+                    Preview
+                </button>
+            )}
+
             {/* Progress Overlay */}
             {(isLoading || progress < 100) && (
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full px-4 py-2 shadow-lg flex items-center gap-3">

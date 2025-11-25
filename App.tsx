@@ -400,8 +400,8 @@ const App: React.FC = () => {
     );
   }
 
-  // If not authenticated or view is login, show login page
-  if (!isAuthenticated || view === 'login') {
+  // Chỉ hiển thị LoginPage khi chủ động chuyển sang chế độ đăng nhập
+  if (view === 'login') {
     return (
       <LoginPage
         onLoginSuccess={() => setView('app')}

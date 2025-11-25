@@ -13,16 +13,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
   const [password, setPassword] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  // FAILSAFE: Auto-reset if stuck in loading (Zombie Session Fix)
+  // FAILSAFE: Auto-reset if stuck in loading (soft handling)
   useEffect(() => {
     if (!isSigningIn) return;
 
     const timer = setTimeout(() => {
-      console.warn('⚠️ Sign in loading timeout - clearing storage and reloading')
-      localStorage.clear()
-      sessionStorage.clear()
-      window.location.reload()
-    }, 8000) // 8 seconds timeout
+      console.warn('⚠️ Sign in loading timeout - please try again')
+      alert('Sign in seems to be taking too long. Please try again.');
+      // Do not clear storage or reload to avoid losing session
+    }, 8000)
 
     return () => clearTimeout(timer)
   }, [isSigningIn])
