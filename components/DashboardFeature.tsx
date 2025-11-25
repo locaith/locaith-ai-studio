@@ -65,13 +65,22 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                 return;
             }
 
+            // Failsafe timeout
+            const timeoutId = setTimeout(() => {
+                if (isMounted && loading) {
+                    console.warn('Dashboard loading timed out');
+                    setLoading(false);
+                }
+            }, 8000);
+
             try {
                 if (isMounted) setLoading(true);
 
+                // Filter deployments by user's websites to avoid RLS scanning issues
                 const [wRes, aRes, dRes, sRes] = await Promise.all([
                     supabase.from('websites').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }),
                     supabase.from('user_activity').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
-                    supabase.from('deployments').select('*').order('deployed_at', { ascending: false }).limit(10),
+                    supabase.from('deployments').select('*, websites!inner(user_id)').eq('websites.user_id', user.id).order('deployed_at', { ascending: false }).limit(10),
                     supabase.rpc('get_user_stats', { user_uuid: user.id })
                 ]);
 
@@ -82,12 +91,21 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
 
                 setWebsites(wRes.data || []);
                 setActivities(aRes.data || []);
-                setDeployments(dRes.data || []);
+                setDeployments(dRes.data ? dRes.data.map((d: any) => {
+                    const { websites, ...rest } = d; // Remove joined table data
+                    return rest;
+                }) : []);
                 setStats(sRes.data || null);
             } catch (err: any) {
                 console.error('Error loading dashboard:', err);
-                if (isMounted) setError(err.message);
+                // Don't show error to user if it's just stats missing
+                if (err.message?.includes('get_user_stats')) {
+                    console.warn('Stats RPC missing, ignoring');
+                } else if (isMounted) {
+                    setError(err.message);
+                }
             } finally {
+                clearTimeout(timeoutId);
                 if (isMounted) setLoading(false);
             }
         };
