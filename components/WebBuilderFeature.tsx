@@ -5,6 +5,7 @@ import { ChatInput } from './ChatInput';
 import { PreviewPane } from './PreviewPane';
 import { streamWebsiteCode } from '../services/geminiService';
 import { useUserActivity } from '../src/hooks/useUserActivity';
+import { useActivity } from '../src/hooks/useActivity';
 import { supabase } from '../src/lib/supabase';
 import { Logo } from '../App'; // We might need to move Logo or duplicate it
 
@@ -397,10 +398,10 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                 return;
             }
 
-            console.log('🚀 Invoking Edge Function with token:', session.access_token.substring(0, 10) + '...');
+            console.log('🚀 Deploying to Vercel...');
 
-            // Deploy to Freestyle.sh with proper auth headers
-            const { data, error } = await supabase.functions.invoke('deploy-freestyle', {
+            // Deploy to Vercel via Edge Function
+            const { data, error } = await supabase.functions.invoke('deploy-vercel', {
                 headers: {
                     Authorization: `Bearer ${session.access_token}`
                 },
@@ -412,39 +413,24 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             });
 
             if (error) {
-                const status = (error as any)?.context?.status;
-                const ctxBody = (error as any)?.context?.body;
-                const bodyText = typeof ctxBody === 'string' ? ctxBody : (ctxBody ? JSON.stringify(ctxBody) : '');
-                console.error('Deployment error:', { message: error.message, status, body: bodyText });
-                throw new Error(`${error.message}${status ? ` (HTTP ${status})` : ''}${bodyText ? `\n${bodyText}` : ''}`);
+                console.error('Deployment error:', error);
+                throw new Error(error.message || 'Deployment failed');
             }
 
-            if (!data || !data.url) {
-                throw new Error('Deployment succeeded but no URL returned');
+            if (!data?.success) {
+                throw new Error(data?.error || 'Deployment failed');
             }
 
-            setDeployedUrl(data.custom_url || data.url);
+            console.log('✅ Deployment successful!', data);
 
-            // Update project ID if new website was created
-            if (data.website_id && !projectId) {
-                setProjectId(data.website_id);
-            }
+            // Show success message with URLs
+            const message = `🎉 Website deployed successfully!\n\nLive URL: ${data.url}\nDomain: ${data.domain}\n\nYour website is now live and accessible to anyone!`;
+            alert(message);
+            setDeploymentUrl(data.url);
 
-            trackActivity({
-                feature_type: 'web-builder',
-                action_type: 'deploy',
-                action_details: {
-                    project_name: projectName,
-                    url: data.custom_url || data.url,
-                    provider: 'freestyle',
-                    sandbox_id: data.sandbox_id,
-                    description: `Deployed project: ${projectName}`
-                }
-            });
         } catch (err: any) {
             console.error('Deploy failed:', err);
-            const msg = err?.message || 'Unknown error';
-            alert(`Deployment failed: ${msg}. Please try again or check function logs.`);
+            alert(`Deployment failed: ${err.message}\n\nPlease try again or contact support if the issue persists.`);
         } finally {
             setIsDeploying(false);
         }
