@@ -18,6 +18,7 @@ export const useAuth = () => {
 
   useEffect(() => {
     let mounted = true;
+    let retried = false;
 
     // 1. Check initial session - CRITICAL: Handle errors properly
     const checkSession = async () => {
@@ -88,6 +89,27 @@ export const useAuth = () => {
 
     checkSession()
 
+    const onVisibility = async () => {
+      if (!mounted) return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          const userEmail = session.user.email || 'unknown@user.com'
+          const userName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || userEmail.split('@')[0] || 'User'
+          setUser({
+            id: session.user.id,
+            email: userEmail,
+            full_name: userName,
+            avatar_url: session.user.user_metadata?.avatar_url,
+            user_metadata: session.user.user_metadata || {}
+          })
+        }
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
     // 2. Listen for auth state changes - HANDLE ALL EVENTS
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const userEmail = session?.user?.email || 'unknown';
@@ -152,6 +174,7 @@ export const useAuth = () => {
     return () => {
       mounted = false
       subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
 

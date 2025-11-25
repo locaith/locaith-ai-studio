@@ -306,7 +306,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                                                 </button>
                                             </div>
                                             <div className="bg-white/90 backdrop-blur-sm self-start px-3 py-1.5 rounded-lg text-xs font-mono text-gray-700 shadow-sm translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                                                {site.subdomain}.locaith.ai
+                                                {site.subdomain && site.subdomain.includes('.') ? site.subdomain : `${site.subdomain}.locaith.ai`}
                                             </div>
                                         </div>
                                         <div className="p-5">

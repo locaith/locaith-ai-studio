@@ -407,7 +407,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                 throw new Error('Deployment succeeded but no URL returned');
             }
 
-            setDeployedUrl(data.url);
+            setDeployedUrl(data.custom_url || data.url);
 
             // Update project ID if new website was created
             if (data.website_id && !projectId) {
@@ -419,7 +419,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                 action_type: 'deploy',
                 action_details: {
                     project_name: projectName,
-                    url: data.url,
+                    url: data.custom_url || data.url,
                     provider: 'freestyle',
                     sandbox_id: data.sandbox_id,
                     description: `Deployed project: ${projectName}`
