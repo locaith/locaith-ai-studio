@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-// Force refresh
 import { useAuth } from '../src/hooks/useAuth';
+import { AuthErrorDisplay } from './AuthErrorDisplay';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -8,7 +8,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) => {
-  const { signInWithGoogle, loading: authLoading } = useAuth();
+  const { signInWithGoogle, loading: authLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -30,13 +30,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
     if (isSigningIn) return;
     try {
       setIsSigningIn(true);
+      clearError?.();
       await signInWithGoogle();
-      // Redirect will happen automatically, no need to call onLoginSuccess
+      // Redirect will happen automatically
     } catch (error) {
       console.error("Login failed:", error);
-      alert("Failed to sign in with Google. Please try again.");
       setIsSigningIn(false);
     }
+  };
+
+  const handleRetry = () => {
+    clearError?.();
+    handleGoogleLogin();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -182,6 +187,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
             </a>
           </p>
         </div>
+
+        {/* Auth Error Display */}
+        <AuthErrorDisplay
+          error={error}
+          onRetry={handleRetry}
+          onDismiss={clearError}
+        />
       </div>
     </div >
   );

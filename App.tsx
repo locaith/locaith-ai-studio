@@ -16,6 +16,7 @@ import { supabase } from './src/lib/supabase';
 import { GoogleGenAI } from '@google/genai';
 import VoiceChat from './components/VoiceChat';
 import { VoiceMode } from './src/types/voice';
+import { OnboardingModal } from './components/OnboardingModal';
 
 // Extend Navigator interface for Web Bluetooth API
 declare global {
