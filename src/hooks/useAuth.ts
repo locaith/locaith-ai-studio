@@ -27,6 +27,15 @@ export const useAuth = () => {
 
         if (error) {
           console.error('Session error:', error)
+          // CRITICAL: Clear invalid session data automatically
+          console.warn('🧹 Clearing invalid session data from localStorage')
+          const keysToClear: string[] = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i) || ''
+            if (k.startsWith('sb-') || k.includes('supabase')) keysToClear.push(k)
+          }
+          keysToClear.forEach(k => localStorage.removeItem(k))
+
           if (mounted) {
             setUser(null)
           }
@@ -130,8 +139,8 @@ export const useAuth = () => {
         console.log('Token refreshed successfully')
       }
 
-      // Set user on sign in or token refresh
-      if (session?.user && mounted && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+      // CRITICAL: Set user on INITIAL_SESSION (page load), SIGNED_IN, or TOKEN_REFRESHED
+      if (session?.user && mounted && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
         const safeEmail = session.user.email || 'unknown@user.com';
         const safeName = session.user.user_metadata?.full_name ||
           session.user.user_metadata?.name ||
