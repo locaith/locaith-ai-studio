@@ -18,18 +18,36 @@ export const useAuth = () => {
 
   useEffect(() => {
     let mounted = true;
-    let retried = false;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
 
-    // 1. Check initial session - CRITICAL: Handle errors properly
-    const checkSession = async () => {
+    // 1. Check initial session - CRITICAL: Handle errors properly with retry
+    const checkSession = async (attempt = 1) => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
-          console.error('Session error:', error)
-          // CRITICAL: Clear invalid session data automatically
-          console.warn('🧹 Clearing invalid session data from localStorage')
-          localStorage.removeItem('locaith-auth-token')
+          console.error(`Session error (attempt ${attempt}/${MAX_RETRIES}):`, error)
+
+          // Retry if not max attempts
+          if (attempt < MAX_RETRIES && mounted) {
+            console.log(`Retrying session check in 1s...`)
+            setTimeout(() => {
+              if (mounted) checkSession(attempt + 1)
+            }, 1000)
+            return
+          }
+
+          // Only clear storage after all retries failed
+          console.warn('🧹 All retries failed - clearing invalid session data')
+          const keysToClear: string[] = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i) || ''
+            if (k.startsWith('sb-') && k.includes('-auth-token')) {
+              keysToClear.push(k)
+            }
+          }
+          keysToClear.forEach(k => localStorage.removeItem(k))
 
           if (mounted) {
             setUser(null)
@@ -50,7 +68,7 @@ export const useAuth = () => {
             id: session.user.id,
             email: userEmail,
             full_name: userName,
-            avatar_url: session.user.user_metadata?.avatar_url,
+            avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
             user_metadata: session.user.user_metadata || {}
           })
 
@@ -74,7 +92,7 @@ export const useAuth = () => {
                 id: session.user.id,
                 email: userEmail,
                 full_name: userName,
-                avatar_url: session.user.user_metadata?.avatar_url
+                avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null
               })
             }
           } catch (profileError) {
@@ -91,7 +109,10 @@ export const useAuth = () => {
       }
     }
 
-    checkSession()
+    // Add delay before first check to let Supabase initialize
+    setTimeout(() => {
+      if (mounted) checkSession()
+    }, 500)
 
     const onVisibility = async () => {
       if (!mounted) return
@@ -104,7 +125,7 @@ export const useAuth = () => {
             id: session.user.id,
             email: userEmail,
             full_name: userName,
-            avatar_url: session.user.user_metadata?.avatar_url,
+            avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
             user_metadata: session.user.user_metadata || {}
           })
         }
@@ -146,7 +167,7 @@ export const useAuth = () => {
           id: session.user.id,
           email: safeEmail,
           full_name: safeName,
-          avatar_url: session.user.user_metadata?.avatar_url,
+          avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
           user_metadata: session.user.user_metadata || {}
         })
 
@@ -184,10 +205,13 @@ export const useAuth = () => {
 
   const signInWithGoogle = async () => {
     try {
+      const redirectUrl = window.location.origin
+      console.log('🔐 Initiating Google OAuth with redirect:', redirectUrl)
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: (import.meta as any).env?.VITE_SITE_URL || window.location.origin,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -217,7 +241,14 @@ export const useAuth = () => {
   const resetSupabaseSession = async () => {
     try {
       setLoading(true)
-      localStorage.removeItem('locaith-auth-token')
+      const keysToClear: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || ''
+        if (k.startsWith('sb-') && k.includes('-auth-token')) {
+          keysToClear.push(k)
+        }
+      }
+      keysToClear.forEach(k => localStorage.removeItem(k))
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) setUser(null)
     } finally {

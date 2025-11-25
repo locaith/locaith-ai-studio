@@ -387,8 +387,19 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             // Save first to ensure latest version
             await saveProject(generatedCode, messages);
 
-            // Deploy to Freestyle.sh
+            // Get current session for auth token
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('Session expired. Please sign in again.');
+                setIsDeploying(false);
+                return;
+            }
+
+            // Deploy to Freestyle.sh with proper auth headers
             const { data, error } = await supabase.functions.invoke('deploy-freestyle', {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                },
                 body: {
                     project_name: projectName || generateProjectName(),
                     html_content: generatedCode,

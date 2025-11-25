@@ -287,9 +287,9 @@ const App: React.FC = () => {
     }
 
     const timeout = setTimeout(() => {
-      console.warn('⚠️ Loading timeout exceeded (5s) - forcing auth ready');
+      console.warn('⚠️ Loading timeout exceeded (15s) - forcing auth ready');
       setIsAuthReady(true); // Force bypass loading screen
-    }, 5000); // 5 second timeout
+    }, 15000); // 15 second timeout (increased from 5s)
 
     return () => clearTimeout(timeout);
   }, [loading]);
