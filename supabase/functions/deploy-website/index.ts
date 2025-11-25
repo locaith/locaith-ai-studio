@@ -141,7 +141,7 @@ serve(async (req) => {
             })
 
         // Return success response
-        const deployedUrl = `https://${uniqueSubdomain}.locaith.app`
+        const deployedUrl = `https://${uniqueSubdomain}.locaith.ai`
 
         return new Response(
             JSON.stringify({

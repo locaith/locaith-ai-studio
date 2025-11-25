@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../src/lib/supabase';
 import { useAuth } from '../src/hooks/useAuth';
-import { 
-    Clock, 
-    Globe, 
-    Github, 
-    Trash2, 
-    ExternalLink, 
-    Layout, 
-    Plus, 
-    Activity, 
-    Server, 
-    BarChart3, 
+import {
+    Clock,
+    Globe,
+    Github,
+    Trash2,
+    ExternalLink,
+    Layout,
+    Plus,
+    Activity,
+    Server,
+    BarChart3,
     ArrowUpRight,
     MoreHorizontal,
     Calendar,
@@ -26,6 +26,8 @@ interface Website {
     github_repo?: string;
     status: string;
     updated_at?: string;
+    html_content?: string;
+    messages?: any[];
 }
 
 interface ActivityLog {
@@ -44,7 +46,7 @@ interface Deployment {
 }
 
 export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => void, onNewProject: () => void }> = ({ onOpenProject, onNewProject }) => {
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, loading: authLoading } = useAuth();
     const [websites, setWebsites] = useState<Website[]>([]);
     const [deployments, setDeployments] = useState<Deployment[]>([]);
     const [activities, setActivities] = useState<ActivityLog[]>([]);
@@ -56,6 +58,8 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
         let isMounted = true;
 
         const loadData = async () => {
+            if (authLoading) return; // Wait for auth to finish
+
             if (!user) {
                 if (isMounted) setLoading(false);
                 return;
@@ -63,8 +67,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
 
             try {
                 if (isMounted) setLoading(true);
-                
-                // Fix: Changed 'user_activity_history' to 'user_activity' to match schema
+
                 const [wRes, aRes, dRes, sRes] = await Promise.all([
                     supabase.from('websites').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }),
                     supabase.from('user_activity').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
@@ -76,10 +79,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
 
                 if (wRes.error) throw wRes.error;
                 if (aRes.error) throw aRes.error;
-                // dRes might fail if RLS policies are strict and we are fetching all deployments not just user's, 
-                // but the policy "Users can view deployments of their websites" should handle it if we filter correctly.
-                // Ideally we should filter deployments by user's websites, but for now let's assume the RPC or RLS handles it or we accept empty.
-                
+
                 setWebsites(wRes.data || []);
                 setActivities(aRes.data || []);
                 setDeployments(dRes.data || []);
@@ -97,7 +97,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
         return () => {
             isMounted = false;
         };
-    }, [user]);
+    }, [user, authLoading]);
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -146,7 +146,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
         return gradients[index];
     };
 
-    if (loading) {
+    if (authLoading || (loading && isAuthenticated)) {
         return (
             <div className="h-full w-full flex items-center justify-center bg-gray-50">
                 <div className="flex flex-col items-center gap-4">
@@ -174,7 +174,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
     return (
         <div className="h-full w-full overflow-y-auto bg-[#F8FAFC] p-4 lg:p-8">
             <div className="max-w-7xl mx-auto space-y-8">
-                
+
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
@@ -237,7 +237,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
 
                 {/* Main Content Area */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                    
+
                     {/* Projects Section (2/3 width on large screens) */}
                     <div className="xl:col-span-2 space-y-6">
                         <div className="flex items-center justify-between">
@@ -257,7 +257,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {websites.map((site) => (
-                                    <div 
+                                    <div
                                         key={site.id}
                                         onClick={() => onOpenProject(site)}
                                         className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col"
@@ -267,7 +267,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                                                 <span className="bg-white/20 backdrop-blur-md text-white text-xs px-2 py-1 rounded-md font-medium">
                                                     {site.status}
                                                 </span>
-                                                <button 
+                                                <button
                                                     onClick={(e) => handleDelete(site.id, e)}
                                                     className="p-1.5 bg-white/20 backdrop-blur-md hover:bg-red-500 text-white rounded-lg transition-colors"
                                                 >
@@ -316,7 +316,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                                             {index !== activities.length - 1 && (
                                                 <div className="absolute left-[11px] top-8 bottom-0 w-px bg-gray-100 group-hover:bg-gray-200 transition-colors" />
                                             )}
-                                            
+
                                             {/* Dot */}
                                             <div className="absolute left-0 top-4 w-[22px] h-[22px] rounded-full bg-white border-2 border-gray-100 flex items-center justify-center z-10 group-hover:border-brand-200 group-hover:scale-110 transition-all">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-brand-500 transition-colors" />
@@ -324,10 +324,10 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
 
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-medium text-gray-900">
-                                                    {activity.action_type === 'create' ? 'Created' : 
-                                                     activity.action_type === 'update' ? 'Updated' : 
-                                                     activity.action_type === 'delete' ? 'Deleted' : 
-                                                     activity.action_type} 
+                                                    {activity.action_type === 'create' ? 'Created' :
+                                                        activity.action_type === 'update' ? 'Updated' :
+                                                            activity.action_type === 'delete' ? 'Deleted' :
+                                                                activity.action_type}
                                                     <span className="text-gray-500 font-normal"> {activity.feature_type}</span>
                                                 </span>
                                                 <span className="text-xs text-gray-400 mt-0.5">

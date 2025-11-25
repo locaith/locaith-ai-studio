@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 // Force refresh
 import { useAuth } from '../src/hooks/useAuth';
 
@@ -8,16 +8,35 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) => {
-  const { signInWithGoogle, loading } = useAuth();
+  const { signInWithGoogle, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  // FAILSAFE: Auto-reset if stuck in loading (Zombie Session Fix)
+  useEffect(() => {
+    if (!isSigningIn) return;
+
+    const timer = setTimeout(() => {
+      console.warn('⚠️ Sign in loading timeout - clearing storage and reloading')
+      localStorage.clear()
+      sessionStorage.clear()
+      window.location.reload()
+    }, 8000) // 8 seconds timeout
+
+    return () => clearTimeout(timer)
+  }, [isSigningIn])
 
   const handleGoogleLogin = async () => {
+    if (isSigningIn) return;
     try {
+      setIsSigningIn(true);
       await signInWithGoogle();
-      onLoginSuccess();
+      // Redirect will happen automatically, no need to call onLoginSuccess
     } catch (error) {
-      console.error("Login failed", error);
+      console.error("Login failed:", error);
+      alert("Failed to sign in with Google. Please try again.");
+      setIsSigningIn(false);
     }
   };
 
@@ -141,10 +160,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
 
           <button
             onClick={handleGoogleLogin}
-            disabled={loading}
+            disabled={isSigningIn}
             className="w-full rounded-xl bg-slate-900 border border-slate-800 text-white font-medium py-3.5 text-sm hover:bg-slate-800 transition-colors flex items-center justify-center gap-3"
           >
-            {loading ? (
+            {isSigningIn ? (
               <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
             ) : (
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
