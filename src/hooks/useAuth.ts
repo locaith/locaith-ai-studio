@@ -29,12 +29,7 @@ export const useAuth = () => {
           console.error('Session error:', error)
           // CRITICAL: Clear invalid session data automatically
           console.warn('🧹 Clearing invalid session data from localStorage')
-          const keysToClear: string[] = []
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i) || ''
-            if (k.startsWith('sb-') || k.includes('supabase')) keysToClear.push(k)
-          }
-          keysToClear.forEach(k => localStorage.removeItem(k))
+          localStorage.removeItem('locaith-auth-token')
 
           if (mounted) {
             setUser(null)
@@ -125,7 +120,7 @@ export const useAuth = () => {
       console.log('🔐 Auth Event:', event, userEmail)
 
       // CRITICAL: Handle sign out and errors
-      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+      if (event === 'SIGNED_OUT') {
         console.log('User signed out, clearing state')
         if (mounted) {
           setUser(null)
@@ -222,12 +217,7 @@ export const useAuth = () => {
   const resetSupabaseSession = async () => {
     try {
       setLoading(true)
-      const keysToClear: string[] = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i) || ''
-        if (k.startsWith('sb-') || k.includes('supabase')) keysToClear.push(k)
-      }
-      keysToClear.forEach(k => localStorage.removeItem(k))
+      localStorage.removeItem('locaith-auth-token')
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) setUser(null)
     } finally {

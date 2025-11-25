@@ -70,6 +70,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             setGeneratedCode(currentProject.html_content || '');
             setMessages(currentProject.messages || []);
             setHasStarted(true);
+            setProgress(100); // Set to 100 to prevent progress bar from showing
 
             if (currentProject.html_content) {
                 setActiveTab(TabOption.PREVIEW);
@@ -462,18 +463,26 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
     return (
         <div className="flex h-full bg-transparent text-gray-900 overflow-hidden font-sans selection:bg-brand-500/30 animate-fade-in-up relative">
 
-            {/* Mobile Preview Toggle */}
+            {/* Mobile Action Buttons */}
             {generatedCode && (
-                <button
-                    onClick={() => setPreviewModalOpen(true)}
-                    className="md:hidden absolute top-3 right-3 z-50 px-3 py-1.5 bg-white/90 border border-gray-200 rounded-lg text-xs text-gray-700 shadow"
-                >
-                    Preview
-                </button>
+                <div className="md:hidden fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+                    <button
+                        onClick={() => setPreviewModalOpen(true)}
+                        className="px-4 py-2 bg-white/95 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 shadow-lg backdrop-blur-sm"
+                    >
+                        Preview
+                    </button>
+                    <button
+                        onClick={handleDeploy}
+                        className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium shadow-lg"
+                    >
+                        Publish
+                    </button>
+                </div>
             )}
 
-            {/* Progress Overlay */}
-            {(isLoading || progress < 100) && (
+            {/* Progress Overlay - Only show when actively loading */}
+            {isLoading && (
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full px-4 py-2 shadow-lg flex items-center gap-3">
                     <div className="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></div>
                     <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">

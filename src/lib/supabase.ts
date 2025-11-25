@@ -11,6 +11,9 @@ export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as s
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storageKey: 'locaith-auth-token', // Explicit storage key
+    storage: window.localStorage, // Explicitly use localStorage
+    flowType: 'pkce' // Use PKCE flow for better security
   }
 })
