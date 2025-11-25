@@ -18,6 +18,9 @@ serve(async (req) => {
   }
 
   try {
+    // Log request for debugging
+    console.log('Deploy request received from:', req.headers.get('Authorization')?.substring(0, 20) + '...')
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -29,12 +32,25 @@ serve(async (req) => {
     )
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('Auth error:', {
+        error: userError,
+        hasAuthHeader: !!req.headers.get('Authorization'),
+        headerLength: req.headers.get('Authorization')?.length
+      })
+
+      return new Response(JSON.stringify({
+        error: 'Unauthorized',
+        details: userError?.message || 'No user found',
+        hint: 'Make sure you are logged in and the session is valid'
+      }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    console.log('Authenticated user:', user.email)
 
     const { project_name, html_content, website_id } = await req.json()
     if (!project_name || !html_content) {

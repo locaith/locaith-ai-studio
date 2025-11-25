@@ -119,16 +119,20 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
     }, [user, authLoading, visRefresh]);
 
     useEffect(() => {
+        let isRefreshing = false;
+
         const onVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && isAuthenticated) {
+            if (document.visibilityState === 'visible' && isAuthenticated && !isRefreshing && !loading) {
+                isRefreshing = true;
                 setVisRefresh((v) => v + 1);
+                setTimeout(() => { isRefreshing = false; }, 1000);
             }
         };
         document.addEventListener('visibilitychange', onVisibilityChange);
         return () => {
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
-    }, [isAuthenticated]);
+    }, [isAuthenticated, loading]);
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
