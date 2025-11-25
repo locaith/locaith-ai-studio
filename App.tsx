@@ -249,6 +249,7 @@ const App: React.FC = () => {
 
   // View State for Login Page
   const [view, setView] = useState<'app' | 'login'>('app');
+  const [isAuthReady, setIsAuthReady] = useState(false); // Failsafe for loading timeout
 
   // Auth
   const { user, signOut, isAuthenticated, loading } = useAuth();
@@ -278,8 +279,23 @@ const App: React.FC = () => {
     }
   }, [isAuthenticated, view]);
 
+  // CRITICAL: Failsafe timeout for loading screen (prevent infinite loading)
+  useEffect(() => {
+    if (!loading) {
+      setIsAuthReady(true);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      console.warn('⚠️ Loading timeout exceeded (5s) - forcing auth ready');
+      setIsAuthReady(true); // Force bypass loading screen
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [loading]);
+
   // Global loading screen while checking auth (like GPT/Gemini)
-  if (loading) {
+  if (loading && !isAuthReady) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-white">
         <div className="text-center">
