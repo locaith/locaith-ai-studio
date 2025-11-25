@@ -389,11 +389,15 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
 
             // Get current session for auth token
             const { data: { session } } = await supabase.auth.getSession();
+            console.log('Deploy Session Check:', session ? '✅ Valid' : '❌ Missing');
+
             if (!session) {
                 alert('Session expired. Please sign in again.');
                 setIsDeploying(false);
                 return;
             }
+
+            console.log('🚀 Invoking Edge Function with token:', session.access_token.substring(0, 10) + '...');
 
             // Deploy to Freestyle.sh with proper auth headers
             const { data, error } = await supabase.functions.invoke('deploy-freestyle', {
