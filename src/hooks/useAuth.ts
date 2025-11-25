@@ -183,7 +183,7 @@ export const useAuth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: (import.meta as any).env?.VITE_SITE_URL || window.location.origin,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -210,11 +210,49 @@ export const useAuth = () => {
     }
   }
 
+  const resetSupabaseSession = async () => {
+    try {
+      setLoading(true)
+      const keysToClear: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || ''
+        if (k.startsWith('sb-') || k.includes('supabase')) keysToClear.push(k)
+      }
+      keysToClear.forEach(k => localStorage.removeItem(k))
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) setUser(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const refreshSession = async () => {
+    try {
+      setLoading(true)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        const userEmail = session.user.email || 'unknown@user.com'
+        const userName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || userEmail.split('@')[0] || 'User'
+        setUser({
+          id: session.user.id,
+          email: userEmail,
+          full_name: userName,
+          avatar_url: session.user.user_metadata?.avatar_url,
+          user_metadata: session.user.user_metadata || {}
+        })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     user,
     loading,
     signInWithGoogle,
     signOut,
+    resetSupabaseSession,
+    refreshSession,
     isAuthenticated: !!user
   }
 }
