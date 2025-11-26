@@ -7,7 +7,9 @@ import { streamWebsiteCode } from '../services/geminiService';
 import { useUserActivity } from '../src/hooks/useUserActivity';
 import { useActivity } from '../src/hooks/useActivity';
 import { supabase } from '../src/lib/supabase';
-import { Logo } from '../App'; // We might need to move Logo or duplicate it
+import { Logo } from '../App';
+import { vi } from '../src/locales/vi';
+import { downloadWebsiteZip } from '../src/utils/zipExport';
 
 // Helper to clean code
 const cleanGeneratedCode = (code: string) => {
@@ -60,6 +62,8 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
     const [supabaseStatus, setSupabaseStatus] = useState<'disconnected' | 'connected'>('disconnected');
     const [isDeploying, setIsDeploying] = useState(false);
     const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
+    const [showDeploySuccess, setShowDeploySuccess] = useState(false);
+    const [copySuccess, setCopySuccess] = useState(false);
 
     const { trackActivity } = useUserActivity();
 
@@ -71,7 +75,16 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             setGeneratedCode(currentProject.html_content || '');
             setMessages(currentProject.messages || []);
             setHasStarted(true);
-            setProgress(100); // Set to 100 to prevent progress bar from showing
+            setProgress(100);
+
+            // Load deployed URL if exists
+            if (currentProject.subdomain) {
+                const url = currentProject.subdomain.startsWith('http')
+                    ? currentProject.subdomain
+                    : `https://${currentProject.subdomain}`;
+                setDeployedUrl(url);
+                setShowDeploySuccess(true);
+            }
 
             if (currentProject.html_content) {
                 setActiveTab(TabOption.PREVIEW);
@@ -292,7 +305,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             const successMsg: Message = {
                 id: (Date.now() + 2).toString(),
                 role: 'assistant',
-                content: "Tuyệt vời! Website của bạn đã hoàn tất. Bạn có thể xem bản xem trước ngay bây giờ.",
+                content: vi.generation.complete,
                 isStreaming: false
             };
 
@@ -377,10 +390,18 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
     // Handle Deploy
     const handleDeploy = async () => {
         setIsDeploying(true);
+        setShowDeploySuccess(false);
+
         try {
             const { data: { user }, error: userError } = await supabase.auth.getUser();
             if (userError || !user) {
-                alert('Please sign in to deploy!');
+                // Show error in chat instead of alert
+                const errorMsg: Message = {
+                    id: Date.now().toString(),
+                    role: 'assistant',
+                    content: vi.errors.auth,
+                };
+                setMessages(prev => [...prev, errorMsg]);
                 setIsDeploying(false);
                 return;
             }
@@ -393,7 +414,12 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             console.log('Deploy Session Check:', session ? '✅ Valid' : '❌ Missing');
 
             if (!session) {
-                alert('Session expired. Please sign in again.');
+                const errorMsg: Message = {
+                    id: Date.now().toString(),
+                    role: 'assistant',
+                    content: vi.messages.sessionExpired,
+                };
+                setMessages(prev => [...prev, errorMsg]);
                 setIsDeploying(false);
                 return;
             }
@@ -423,14 +449,28 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
 
             console.log('✅ Deployment successful!', data);
 
-            // Show success message with URLs
-            const message = `🎉 Website deployed successfully!\n\nLive URL: ${data.url}\nDomain: ${data.domain}\n\nYour website is now live and accessible to anyone!`;
-            alert(message);
+            // Show success banner instead of alert
             setDeployedUrl(data.url);
+            setShowDeploySuccess(true);
+
+            // Add success message to chat
+            const successMsg: Message = {
+                id: Date.now().toString(),
+                role: 'assistant',
+                content: vi.deployment.success,
+            };
+            setMessages(prev => [...prev, successMsg]);
 
         } catch (err: any) {
             console.error('Deploy failed:', err);
-            alert(`Deployment failed: ${err.message}\n\nPlease try again or contact support if the issue persists.`);
+
+            // Show error in chat
+            const errorMsg: Message = {
+                id: Date.now().toString(),
+                role: 'assistant',
+                content: vi.errors.generic.replace('{error}', err.message),
+            };
+            setMessages(prev => [...prev, errorMsg]);
         } finally {
             setIsDeploying(false);
         }
@@ -507,16 +547,64 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             )}
 
             {/* Deployment Success */}
-            {deployedUrl && !isDeploying && (
-                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white border border-gray-200 rounded-xl w-full max-w-lg p-8 shadow-2xl text-center relative">
-                        <button onClick={() => setDeployedUrl(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            {/* Deployment Success Banner */}
+            {showDeploySuccess && deployedUrl && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg px-4">
+                    <div className="bg-white border-2 border-green-500 rounded-lg shadow-xl p-4 relative animate-fade-in">
+                        {/* Close button */}
+                        <button
+                            onClick={() => setShowDeploySuccess(false)}
+                            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                         </button>
-                        <h2 className="text-2xl font-bold mb-2 text-gray-900">Deployment Successful!</h2>
-                        <div className="bg-gray-100 p-4 rounded-lg flex items-center justify-between mb-6 border border-gray-200 group">
-                            <a href="#" className="text-brand-600 hover:underline font-mono text-sm truncate mr-2">{deployedUrl}</a>
+
+                        {/* Header */}
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h3 className="font-bold text-lg text-gray-900">{vi.deployment.success}</h3>
                         </div>
+
+                        {/* URL Display */}
+                        <label className="text-sm text-gray-600 mb-1 block">{vi.deployment.urlLabel}</label>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <a
+                                    href={deployedUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-brand-600 hover:text-brand-700 hover:underline font-mono text-sm truncate flex-1"
+                                >
+                                    {deployedUrl}
+                                </a>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(deployedUrl);
+                                        setCopySuccess(true);
+                                        setTimeout(() => setCopySuccess(false), 2000);
+                                    }}
+                                    className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs rounded font-medium transition-colors flex-shrink-0"
+                                >
+                                    {copySuccess ? vi.deployment.copied : vi.deployment.copyButton}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Action Button */}
+                        <a
+                            href={deployedUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full py-2 bg-green-600 hover:bg-green-700 text-white text-center rounded-lg font-medium transition-colors"
+                        >
+                            {vi.deployment.openButton}
+                        </a>
                     </div>
                 </div>
             )}
@@ -555,6 +643,29 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                     </div>
 
                     <div className="flex items-center gap-3 relative">
+                        {/* Download ZIP Button */}
+                        <button
+                            onClick={async () => {
+                                try {
+                                    await downloadWebsiteZip(generatedCode, projectName || 'website');
+                                } catch (error) {
+                                    console.error('Download failed:', error);
+                                }
+                            }}
+                            disabled={!generatedCode}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${generatedCode
+                                    ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                                    : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                                }`}
+                            title={vi.actions.downloadZip}
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                            </svg>
+                            <span className="hidden lg:inline">{vi.actions.downloadZip}</span>
+                        </button>
+
+                        {/* Publish Button */}
                         <button
                             onClick={handleDeploy}
                             className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-brand-900/20"

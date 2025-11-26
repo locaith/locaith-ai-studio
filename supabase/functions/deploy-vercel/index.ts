@@ -65,8 +65,25 @@ serve(async (req) => {
             })
         }
 
+        // Smart re-deployment: Use existing subdomain if available
+        let deploymentName = project_name
+        if (website_id) {
+            const { data: existingWebsite } = await supabaseClient
+                .from('websites')
+                .select('subdomain')
+                .eq('id', website_id)
+                .single()
+
+            if (existingWebsite?.subdomain) {
+                // Extract project name from existing subdomain (remove .vercel.app)
+                const existingDomain = existingWebsite.subdomain.replace('https://', '').replace('.vercel.app', '')
+                deploymentName = existingDomain
+                console.log('Re-deploying to existing domain:', deploymentName)
+            }
+        }
+
         // Sanitize project name
-        const sanitizedName = project_name
+        const sanitizedName = deploymentName
             .toLowerCase()
             .replace(/[^a-z0-9-]/g, '-')
             .replace(/-+/g, '-')
