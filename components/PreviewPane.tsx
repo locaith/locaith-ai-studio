@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TabOption } from '../types';
+import { vi } from '../src/locales/vi';
 
 interface PreviewPaneProps {
   code: string;
@@ -98,7 +99,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ code, activeTab, onTab
               : 'text-gray-400 hover:text-gray-200 hover:bg-dark-600/50'
               }`}
           >
-            Preview
+            {vi.ui.preview}
           </button>
           <button
             onClick={() => onTabChange(TabOption.CODE)}
@@ -120,12 +121,12 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ code, activeTab, onTab
               {copied ? (
                 <>
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span className="text-green-500">Copied!</span>
+                  <span className="text-green-500">{vi.deployment.copied}</span>
                 </>
               ) : (
                 <>
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                  <span>Copy</span>
+                  <span>{vi.deployment.copyButton}</span>
                 </>
               )}
             </button>

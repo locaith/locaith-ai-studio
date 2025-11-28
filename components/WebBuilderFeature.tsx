@@ -64,8 +64,35 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
     const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
     const [showDeploySuccess, setShowDeploySuccess] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [previewError, setPreviewError] = useState<string | null>(null);
 
     const { trackActivity } = useUserActivity();
+
+    // Listen for preview errors from iframe
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data?.type === 'PREVIEW_ERROR') {
+                const errorMessage = event.data.message || 'Unknown error';
+                setPreviewError(errorMessage);
+
+                // Add error message to chat with fix button
+                const errorMsg: Message = {
+                    id: Date.now().toString(),
+                    role: 'assistant',
+                    content: `${vi.messages.errorDetected}\n\n\`\`\`\n${errorMessage}\n\`\`\``,
+                    action: {
+                        label: vi.errors.fixButton,
+                        type: 'fix',
+                        payload: { error: errorMessage }
+                    }
+                };
+                setMessages(prev => [...prev, errorMsg]);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
 
     // Load project state if currentProject is provided
     useEffect(() => {
@@ -306,7 +333,12 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                 id: (Date.now() + 2).toString(),
                 role: 'assistant',
                 content: vi.generation.complete,
-                isStreaming: false
+                isStreaming: false,
+                action: {
+                    label: vi.actions.downloadZip,
+                    type: 'download',
+                    payload: { code: currentGeneratedCode, projectName }
+                }
             };
 
             setMessages(prev => {
@@ -485,7 +517,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                             Locaith <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-accent-500">Builder</span>
                         </h1>
                         <p className="text-base text-gray-600 max-w-lg mx-auto leading-relaxed backdrop-blur-sm bg-white/30 p-2 rounded-lg">
-                            Describe your dream app, watch the AI code it step-by-step, and get a production-ready React website instantly.
+                            {vi.ui.subtitle}
                         </p>
                     </div>
 
@@ -493,7 +525,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                         onSend={handleStart}
                         onStop={() => { }}
                         isLoading={false}
-                        placeholder="Build a dashboard for a crypto app..."
+                        placeholder={vi.ui.placeholder}
                         isLandingPage={true}
                     />
                 </div>
@@ -511,13 +543,13 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                         onClick={() => setPreviewModalOpen(true)}
                         className="px-4 py-2 bg-white/95 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 shadow-lg backdrop-blur-sm"
                     >
-                        Preview
+                        {vi.ui.preview}
                     </button>
                     <button
                         onClick={handleDeploy}
                         className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium shadow-lg"
                     >
-                        Publish
+                        {vi.ui.publish}
                     </button>
                 </div>
             )}
@@ -529,7 +561,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                     <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div className="h-full bg-brand-600" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}></div>
                     </div>
-                    <span className="text-xs text-gray-700">Generating website...</span>
+                    <span className="text-xs text-gray-700">{vi.ui.generating}</span>
                 </div>
             )}
 
@@ -539,9 +571,9 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                     <div className="bg-white border border-gray-200 rounded-xl w-full max-w-md p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-5 h-5 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
-                            <h3 className="text-lg font-mono text-gray-900">Deploying to Edge...</h3>
+                            <h3 className="text-lg font-mono text-gray-900">{vi.ui.deploying}</h3>
                         </div>
-                        <p className="text-sm text-gray-500">Please wait while we publish your site.</p>
+                        <p className="text-sm text-gray-500">{vi.deployment.processing}</p>
                     </div>
                 </div>
             )}
@@ -616,16 +648,32 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                         <Logo />
                     </div>
                     <div>
-                        <h1 className="font-bold text-sm tracking-wide text-gray-900">{projectName || 'New Project'}</h1>
+                        <h1 className="font-bold text-sm tracking-wide text-gray-900">{projectName || vi.ui.newProject}</h1>
                         <div className="flex items-center gap-1.5">
                             <span className={`w-1.5 h-1.5 rounded-full ${projectId ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-                            <span className="text-[10px] text-gray-500 font-mono">{projectId ? 'SAVED' : 'UNSAVED'}</span>
+                            <span className="text-[10px] text-gray-500 font-mono">{projectId ? vi.ui.saved : vi.ui.unsaved}</span>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-hidden relative bg-gray-50/50">
-                    <Sidebar messages={messages} onAction={() => { }} />
+                    <Sidebar messages={messages} onAction={async (action) => {
+                        if (action.type === 'download') {
+                            // Handle ZIP download
+                            try {
+                                await downloadWebsiteZip(
+                                    action.payload.code || generatedCode,
+                                    action.payload.projectName || projectName || 'website'
+                                );
+                            } catch (error) {
+                                console.error('Download failed:', error);
+                            }
+                        } else if (action.type === 'fix') {
+                            // Handle auto-fix for errors
+                            const fixPrompt = `Có lỗi xảy ra trong website. Vui lòng sửa lỗi sau:\n\n${action.payload.error}\n\nHãy tạo lại code hoàn chỉnh đã được sửa lỗi.`;
+                            handleSend(fixPrompt);
+                        }
+                    }} />
                 </div>
 
                 <div className="p-4 bg-white/50 border-t border-gray-200">
@@ -654,8 +702,8 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                             }}
                             disabled={!generatedCode}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${generatedCode
-                                    ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
-                                    : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                                ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                                : 'bg-gray-50 text-gray-400 cursor-not-allowed'
                                 }`}
                             title={vi.actions.downloadZip}
                         >
@@ -670,7 +718,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                             onClick={handleDeploy}
                             className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-brand-900/20"
                         >
-                            Publish
+                            {vi.ui.publish}
                         </button>
                     </div>
                 </div>
@@ -694,7 +742,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                             onClick={() => setPreviewModalOpen(false)}
                             className="absolute top-4 right-4 z-20 p-2 bg-white/80 border border-gray-200 rounded-full text-gray-700 hover:bg-white md:shadow"
                         >
-                            Close
+                            {vi.ui.close}
                         </button>
                         <div className="w-full h-full pt-12 md:pt-0">
                             <PreviewPane

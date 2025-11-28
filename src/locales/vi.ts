@@ -47,6 +47,21 @@ export const vi = {
         saving: '💾 Đang lưu dự án...',
         saved: '✓ Đã lưu',
         sessionExpired: 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.',
+        errorDetected: '⚠️ Phát hiện lỗi trong bản xem trước:',
+    },
+
+    ui: {
+        title: 'Locaith Builder',
+        subtitle: 'Mô tả ứng dụng mơ ước của bạn, xem AI viết code từng bước và nhận website React sẵn sàng chạy ngay lập tức.',
+        placeholder: 'Xây dựng dashboard cho ứng dụng crypto...',
+        preview: 'Xem trước',
+        publish: 'Xuất bản',
+        close: 'Đóng',
+        unsaved: 'CHƯA LƯU',
+        saved: 'ĐÃ LƯU',
+        generating: 'Đang tạo website...',
+        deploying: 'Đang deploy...',
+        newProject: 'Dự án mới',
     }
 }
 

@@ -85,8 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ messages, onAction }) => {
             >
               <div
                 className={`max-w-[95%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
-                    ? 'bg-brand-600 text-white rounded-br-none shadow-sm'
-                    : 'bg-white/90 text-gray-900 border border-gray-200 rounded-bl-none w-full shadow-sm'
+                  ? 'bg-brand-600 text-white rounded-br-none shadow-sm'
+                  : 'bg-white/90 text-gray-900 border border-gray-200 rounded-bl-none w-full shadow-sm'
                   }`}
               >
                 {/* Thinking/Reasoning Text */}
@@ -138,9 +138,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ messages, onAction }) => {
                   <div className="mt-3 pt-3 border-t border-gray-100">
                     <button
                       onClick={() => onAction && onAction(msg.action)}
-                      className="w-full py-2 px-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                      className={`w-full py-2 px-4 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 ${msg.action.type === 'download'
+                        ? 'bg-brand-50 hover:bg-brand-100 text-brand-600'
+                        : 'bg-red-50 hover:bg-red-100 text-red-600'
+                        }`}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                      {msg.action.type === 'download' ? (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                      )}
                       {msg.action.label}
                     </button>
                   </div>
