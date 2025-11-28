@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Message } from '../types';
+import { vi } from '../src/locales/vi';
 
 interface SidebarProps {
   messages: Message[];
@@ -66,9 +67,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ messages, onAction }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900">Locaith Architect</h3>
+            <h3 className="text-lg font-medium text-gray-900">{vi.sidebar.emptyTitle}</h3>
             <p className="text-sm text-gray-600 max-w-xs mt-2">
-              Ask me to build a Next.js-style React app. "A dashboard for analytics", "A social media feed", "A crypto landing page".
+              {vi.sidebar.emptyDescription}
             </p>
           </div>
         )}
@@ -156,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ messages, onAction }) => {
                 )}
               </div>
               <span className="text-[10px] text-gray-600 mt-1 px-1 uppercase tracking-wider font-medium">
-                {msg.role === 'assistant' ? 'Locaith AI' : 'You'}
+                {msg.role === 'assistant' ? vi.sidebar.ai : vi.sidebar.you}
               </span>
             </div>
           );
@@ -168,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ messages, onAction }) => {
             onClick={scrollToLatest}
             className="px-3 py-1.5 bg-white/90 border border-gray-200 rounded-full text-xs text-gray-700 shadow-sm hover:bg-white"
           >
-            Xem tin mới
+            {vi.sidebar.newMessages}
           </button>
         </div>
       )}

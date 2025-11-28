@@ -62,6 +62,14 @@ export const vi = {
         generating: 'Đang tạo website...',
         deploying: 'Đang deploy...',
         newProject: 'Dự án mới',
+    },
+
+    sidebar: {
+        emptyTitle: 'Locaith Architect',
+        emptyDescription: 'Yêu cầu tôi xây dựng ứng dụng React phong cách Next.js. "Dashboard phân tích", "Bảng tin mạng xã hội", "Trang landing crypto".',
+        you: 'Bạn',
+        ai: 'Locaith AI',
+        newMessages: 'Xem tin mới',
     }
 }
 

@@ -12,11 +12,12 @@ You must output your response in two distinct parts:
 
 **PART 1: THE BUILD PLAN (Streaming Logs)**
 Before writing any code, you must output a series of "Build Logs" that describe what you are doing. Use the specific prefix \`[BUILD]\` for these lines.
+**IMPORTANT: All build logs must be in VIETNAMESE.**
 Example:
-\`[BUILD] Initializing React application structure...\`
-\`[BUILD] Creating Navigation component with Lucide icons...\`
-\`[BUILD] Implementing Hero section with gradients...\`
-\`[BUILD] Integrating State Management for interactivity...\`
+\`[BUILD] Khởi tạo cấu trúc ứng dụng React...\`
+\`[BUILD] Đang tạo component Navigation với icon Lucide...\`
+\`[BUILD] Đang triển khai phần Hero với hiệu ứng gradient...\`
+\`[BUILD] Tích hợp quản lý trạng thái cho các tương tác...\`
 
 **PART 2: THE CODE (The Artifact)**
 After the build logs, output the COMPLETE, runnable HTML file.
@@ -43,7 +44,7 @@ After the build logs, output the COMPLETE, runnable HTML file.
 export const streamWebsiteCode = async function* (prompt: string, previousCode: string = '') {
   try {
     const modelId = 'gemini-3-pro-preview';
-    
+
     let fullPrompt = prompt;
     if (previousCode) {
       fullPrompt = `
@@ -70,7 +71,7 @@ export const streamWebsiteCode = async function* (prompt: string, previousCode: 
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.4,
-        thinkingConfig: { thinkingBudget: 8192 }, 
+        thinkingConfig: { thinkingBudget: 8192 },
       }
     });
 
