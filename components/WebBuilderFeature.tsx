@@ -691,6 +691,24 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                     </div>
 
                     <div className="flex items-center gap-3 relative">
+                        {/* New Project Button */}
+                        <button
+                            onClick={() => {
+                                setHasStarted(false);
+                                setProjectId(null);
+                                setMessages([]);
+                                setProjectName('');
+                                setGeneratedCode('');
+                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm"
+                            title={vi.ui.newProject}
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span className="hidden lg:inline">{vi.ui.newProject}</span>
+                        </button>
+
                         {/* Download ZIP Button */}
                         <button
                             onClick={async () => {
