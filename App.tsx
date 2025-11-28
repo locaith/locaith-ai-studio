@@ -440,7 +440,7 @@ const App: React.FC = () => {
             currentTheme={currentTheme}
             onThemeChange={handleThemeChange}
             isCollapsed={isMobile ? false : isSidebarCollapsed}
-            onToggleCollapse={isMobile ? undefined : () => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            onToggleCollapse={isMobile ? () => setIsMobileMenuOpen(!isMobileMenuOpen) : () => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
           {/* Resize Handle (Desktop Only) */}
           <div

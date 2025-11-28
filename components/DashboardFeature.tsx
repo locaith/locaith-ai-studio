@@ -336,45 +336,6 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                             </div>
                         )}
                     </div>
-
-                    {/* Activity Feed (1/3 width) */}
-                    <div className="space-y-6">
-                        <h2 className="text-xl font-bold text-gray-900">Activity Log</h2>
-                        <div className="bg-white rounded-2xl border border-gray-100 p-2 shadow-sm">
-                            {activities.length === 0 ? (
-                                <div className="p-8 text-center text-gray-500 text-sm">No recent activity</div>
-                            ) : (
-                                <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                    {activities.map((activity, index) => (
-                                        <div key={activity.id} className="relative pl-6 py-3 group hover:bg-gray-50 rounded-lg transition-colors">
-                                            {/* Timeline line */}
-                                            {index !== activities.length - 1 && (
-                                                <div className="absolute left-[11px] top-8 bottom-0 w-px bg-gray-100 group-hover:bg-gray-200 transition-colors" />
-                                            )}
-
-                                            {/* Dot */}
-                                            <div className="absolute left-0 top-4 w-[22px] h-[22px] rounded-full bg-white border-2 border-gray-100 flex items-center justify-center z-10 group-hover:border-brand-200 group-hover:scale-110 transition-all">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-brand-500 transition-colors" />
-                                            </div>
-
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-gray-900">
-                                                    {activity.action_type === 'create' ? 'Created' :
-                                                        activity.action_type === 'update' ? 'Updated' :
-                                                            activity.action_type === 'delete' ? 'Deleted' :
-                                                                activity.action_type}
-                                                    <span className="text-gray-500 font-normal"> {activity.feature_type}</span>
-                                                </span>
-                                                <span className="text-xs text-gray-400 mt-0.5">
-                                                    {new Date(activity.created_at).toLocaleString()}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

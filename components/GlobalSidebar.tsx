@@ -53,13 +53,29 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ activeFeature, onS
   return (
     <div className="h-screen bg-white/90 backdrop-blur border-r border-gray-200 flex flex-col z-50 transition-colors duration-300 w-full overflow-hidden">
       {/* Studio Header */}
-      <div className={`p-3 md:p-6 flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} transition-all`}>
-        <img src="/logo-locaith.png" alt="Locaith Studio" className="w-8 h-8 flex-shrink-0" />
-        {!isCollapsed && (
-          <div className="flex flex-col overflow-hidden">
-            <span className="font-bold text-gray-900 tracking-tight whitespace-nowrap">Locaith Studio</span>
-            <span className="text-[10px] text-brand-600 uppercase tracking-wider font-semibold whitespace-nowrap">Pro Suite</span>
-          </div>
+      <div className={`p-3 md:p-6 flex items-center transition-all ${isCollapsed ? 'flex-col justify-center gap-4' : 'justify-between'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+          <img src="/logo-locaith.png" alt="Locaith Studio" className="w-8 h-8 flex-shrink-0" />
+          {!isCollapsed && (
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-bold text-gray-900 tracking-tight whitespace-nowrap">Locaith Studio</span>
+              <span className="text-[10px] text-brand-600 uppercase tracking-wider font-semibold whitespace-nowrap">Pro Suite</span>
+            </div>
+          )}
+        </div>
+
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className={`text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100 ${isCollapsed ? '' : ''}`}
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isCollapsed ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+            )}
+          </button>
         )}
       </div>
 
@@ -129,19 +145,6 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ activeFeature, onS
 
       {/* Bottom Section */}
       <div className="p-2 md:p-4 border-t border-gray-200 space-y-2 bg-gray-50/50 transition-colors duration-300 relative">
-        {onToggleCollapse && (
-          <button
-            onClick={onToggleCollapse}
-            className="w-full flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            {isCollapsed ? (
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
-            )}
-          </button>
-        )}
-
         <SidebarItem
           active={activeFeature === 'settings'}
           onClick={() => onSelect('settings')}

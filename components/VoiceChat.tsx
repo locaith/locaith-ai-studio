@@ -179,6 +179,44 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
 
   // 🔒 CRITICAL: Prevent duplicate connections
   const isConnectingRef = useRef(false);
+  const isMutedRef = useRef(isMuted);
+
+  // --- Sound Effects Helpers ---
+  const playSound = (type: 'mute' | 'unmute') => {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'mute') {
+      // Low pitch, descending tone for mute
+      osc.frequency.setValueAtTime(400, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    } else {
+      // High pitch, ascending tone for unmute
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    }
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  };
+
+  // Sync isMuted state to Ref and MediaStream tracks
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted;
+      });
+    }
+  }, [isMuted]);
 
   // 🛡️ DEBOUNCE: Prevent duplicate prompt generation
   const lastProcessedPromptRef = useRef<{ text: string, time: number } | null>(null);
@@ -432,7 +470,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
               const rms = Math.sqrt(sum / inputData.length);
               setAudioVolume(prev => Math.max(rms * 5, prev * 0.9));
 
-              if (isMuted) return;
+              if (isMutedRef.current) return;
 
               const base64Data = audioBufferToBase64(inputData);
               sessionPromise.then(session => {
@@ -714,14 +752,17 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
           <div className="flex flex-col">
             <span className="text-xs font-bold text-gray-900">Locaith AI</span>
             <span className="text-[10px] text-gray-500 flex items-center gap-1">
-              {isConnected ? <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> : null}
-              {isConnected ? 'Listening...' : 'Paused'}
+              {isConnected && !isMuted ? <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> : <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>}
+              {isConnected ? (isMuted ? 'Mic Muted' : 'Listening...') : 'Paused'}
             </span>
           </div>
 
           {/* Controls */}
           <div className="flex items-center space-x-1 pl-2 border-l border-gray-200">
-            <button onClick={() => setIsMuted(!isMuted)} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600">
+            <button onClick={() => {
+              playSound(isMuted ? 'unmute' : 'mute');
+              setIsMuted(!isMuted);
+            }} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600">
               {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
             </button>
             <button onClick={() => setMode('FULL')} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600">
@@ -842,7 +883,12 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
           </div>
         ) : isConnected ? (
           <p className="text-gray-400 text-sm animate-pulse flex items-center justify-center gap-2">
-            {audioVolume > 0.05 ? (
+            {isMuted ? (
+              <span className="text-red-400 font-medium flex items-center gap-2">
+                <MicOff className="w-4 h-4" />
+                Microphone is muted
+              </span>
+            ) : audioVolume > 0.05 ? (
               <span className="text-blue-400 font-medium">Listening / Speaking...</span>
             ) : (
               "Listening..."
@@ -876,7 +922,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       {/* --- Bottom Control Bar --- */}
       <div className="h-24 bg-gray-900 border-t border-gray-800 flex items-center justify-center space-x-6 z-20">
         <button
-          onClick={() => setIsMuted(!isMuted)}
+          onClick={() => {
+            playSound(isMuted ? 'unmute' : 'mute');
+            setIsMuted(!isMuted);
+          }}
           disabled={!isConnected}
           className={`
             relative p-4 rounded-full transition-all 
