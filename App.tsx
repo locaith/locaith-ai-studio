@@ -10,7 +10,6 @@ import { PublishedSite } from './components/PublishedSite';
 
 import { AuthModal } from './components/AuthModal';
 import { useAuth } from './src/hooks/useAuth';
-import { RecentHistorySidebar } from './components/RecentHistorySidebar';
 import { useUserActivity } from './src/hooks/useUserActivity';
 import { supabase } from './src/lib/supabase';
 import { GoogleGenAI } from '@google/genai';
@@ -514,15 +513,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Recent History Sidebar */}
-        {isAuthenticated && (
-          <div className="hidden lg:block">
-            <RecentHistorySidebar
-              currentFeature={activeFeature}
-              isCollapsed={false}
-            />
-          </div>
-        )}
       </div>
     </div>
   );
