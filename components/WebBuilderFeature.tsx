@@ -219,11 +219,11 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
 
     const lastUserPromptRef = useRef<{ text: string; time: number } | null>(null);
 
-    const handleSend = useCallback(async (content: string) => {
+    const handleSend = useCallback(async (content: string, images?: string[]) => {
         const normalized = String(content || '').trim();
         const now = Date.now();
         const last = lastUserPromptRef.current;
-        if (last && last.text === normalized && (now - last.time) < 5000) {
+        if (last && last.text === normalized && (!images || images.length === 0) && (now - last.time) < 5000) {
             return;
         }
         lastUserPromptRef.current = { text: normalized, time: now };
@@ -231,7 +231,8 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
         const userMsg: Message = {
             id: Date.now().toString(),
             role: 'user',
-            content: normalized
+            content: normalized,
+            images: images
         };
 
         const assistantMsgId = (Date.now() + 1).toString();
@@ -244,9 +245,9 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
 
         setMessages(prev => {
             const last = prev[prev.length - 1];
-            const shouldAddUser = !(last && last.role === 'user' && last.content.trim() === normalized);
+            const shouldAddUser = (!images || images.length === 0) && !(last && last.role === 'user' && last.content.trim() === normalized);
             const next = [...prev];
-            if (shouldAddUser) next.push(userMsg);
+            if (shouldAddUser || (images && images.length > 0)) next.push(userMsg);
             next.push(assistantMsg);
             return next;
         });
@@ -273,7 +274,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
         abortControllerRef.current = abortController;
 
         try {
-            const stream = streamWebsiteCode(normalized, generatedCode);
+            const stream = streamWebsiteCode(normalized, generatedCode, images);
 
             let fullResponse = '';
             let codePart = '';
@@ -381,7 +382,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
         }
     }, [generatedCode, triggerSave, isHoldPlaying]);
 
-    const handleStart = (prompt: string) => {
+    const handleStart = (prompt: string, images?: string[]) => {
         const newName = generateProjectName();
         setProjectName(newName);
         setHasStarted(true);
@@ -396,7 +397,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
             }
         });
 
-        handleSend(prompt);
+        handleSend(prompt, images);
     };
 
     useEffect(() => {

@@ -90,6 +90,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ messages, onAction }) => {
                   : 'bg-white/90 text-gray-900 border border-gray-200 rounded-bl-none w-full shadow-sm'
                   }`}
               >
+                {/* User Images (Multi) */}
+                {msg.role === 'user' && msg.images && msg.images.length > 0 && (
+                  <div className={`mb-2 flex gap-2 overflow-x-auto scrollbar-hide ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                    {msg.images.map((img, idx) => (
+                      <img key={idx} src={img} alt={`Uploaded ${idx}`} className="max-h-32 rounded-lg border border-white/20 object-cover" />
+                    ))}
+                  </div>
+                )}
+
                 {/* Thinking/Reasoning Text */}
                 {isAssistant && otherContent.trim() && (
                   <div className="mb-3 text-gray-500 italic text-xs border-l-2 border-gray-200 pl-2">
