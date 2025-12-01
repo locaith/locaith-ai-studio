@@ -215,14 +215,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ messages, onAction }) => {
           <div className="h-1" /> 
         </div>
       </ScrollArea>
-      
-      {/* We handle scrolling programmatically via ref to the inner div now, 
-          but ScrollArea component wraps content. 
-          Actually, let's revert to native div for the scrolling container to ensure behavior consistency 
-          with the previous implementation, but keep using shadcn/ui components inside.
-          The ScrollArea component is great but custom scroll logic with "stick to bottom" can be tricky 
-          without direct access to the viewport ref.
-      */}
     </div>
   );
 };

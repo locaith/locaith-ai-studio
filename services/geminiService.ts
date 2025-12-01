@@ -303,6 +303,16 @@ After the build logs, output the COMPLETE, runnable HTML file.
     - Inter/JetBrains Mono fonts.
 - **Images**: Use \`https://images.unsplash.com/photo-...\` or \`https://picsum.photos/...\` for high-quality placeholders.
 
+### IMAGE INPUT HANDLING
+If the user provides images (screenshots/mockups):
+1.  **Analyze the Layout**: Meticulously examine the structure, spacing, and positioning of elements in the image.
+2.  **Extract Design System**: Identify the color palette, typography style (serif/sans-serif, weights), and visual hierarchy.
+3.  **Replicate Logic**:
+    -   Prioritize the **visual layout** from the image over generic design patterns.
+    -   Use Tailwind CSS utility classes to match the spacing (padding/margin), sizing, and alignment exactly.
+    -   If the image contains specific text content, try to use it (or reasonable placeholders if illegible).
+    -   If the user text conflicts with the image (e.g., "Make this blue" but image is red), prioritize the **user's text instruction** for specific overrides, but keep the **image's layout structure**.
+
 ### TECHNICAL CONSTRAINTS
 - The output must be a single HTML file.
 - Do NOT use \`import\` or \`export\` statements that require a bundler (no \`import { useState } from 'react'\`).
@@ -310,7 +320,7 @@ After the build logs, output the COMPLETE, runnable HTML file.
 - Ensure \`lucide.createIcons()\` is called if using the non-react version, OR preferably use \`lucide-react\` components via a global variable if available, or just use standard SVG icons if CDN imports are tricky in a single file. **Recommendation:** Use standard SVGs or FontAwesome for reliability if React Lucide CDN is unstable.
 `;
 
-export const streamWebsiteCode = async function* (prompt: string, previousCode: string = '') {
+export const streamWebsiteCode = async function* (prompt: string, previousCode: string = '', images?: string[]) {
   try {
     const modelId = 'gemini-2.0-flash-exp';
 
@@ -329,12 +339,30 @@ export const streamWebsiteCode = async function* (prompt: string, previousCode: 
       `;
     }
 
+    const parts: any[] = [{ text: fullPrompt }];
+
+    if (images && images.length > 0) {
+      images.forEach(img => {
+        const cleanBase64 = img.split(',')[1] || img;
+        // Extract mime type from base64 string if present, default to jpeg
+        const mimeMatch = img.match(/^data:(.+);base64,/);
+        const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+
+        parts.push({
+          inlineData: {
+            mimeType: mimeType,
+            data: cleanBase64
+          }
+        });
+      });
+    }
+
     const responseStream = await ai.models.generateContentStream({
       model: modelId,
       contents: [
         {
           role: 'user',
-          parts: [{ text: fullPrompt }]
+          parts: parts
         }
       ],
       config: {

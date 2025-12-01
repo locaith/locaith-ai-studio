@@ -201,27 +201,25 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                 setDeployedUrl(url);
                 setShowDeploySuccess(true);
             }
-            if (currentProject.html_content) {
-                setActiveTab(TabOption.PREVIEW);
-            }
-        } else {
-            // Load saved projects
-            fetchSavedProjects();
+            setActiveTab(TabOption.PREVIEW);
         }
     }, [currentProject]);
 
-    const fetchSavedProjects = async () => {
-        try {
-            const user_id = 'local-dev-user'; // Mock user ID
-            const res = await fetch(`http://localhost:3001/api/websites/${user_id}`);
-            if (res.ok) {
-                const projects = await res.json();
-                setSavedProjects(projects);
+    // Fetch projects on mount
+    useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                const response = await fetch('http://localhost:3001/api/websites');
+                if (response.ok) {
+                    const data = await response.json();
+                    setSavedProjects(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch projects", error);
             }
-        } catch (err) {
-            console.error("Failed to load projects", err);
-        }
-    };
+        };
+        fetchProjects();
+    }, [hasStarted]); // Refresh when returning to landing
 
     const loadProject = (project: any) => {
         setProjectId(project.id);
@@ -239,6 +237,210 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
              setShowDeploySuccess(true);
         }
         setActiveTab(TabOption.PREVIEW);
+    };
+
+    // Debounced save
+    const triggerSave = useCallback((code: string, msgs: Message[]) => {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = setTimeout(() => {
+            saveProject(code, msgs);
+        }, 2000); // Save after 2 seconds of inactivity
+    }, [projectId, projectName]);
+
+    const handleStop = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+            setIsLoading(false);
+            setMessages(prev => {
+                const newMsgs = prev.map(msg =>
+                    msg.isStreaming ? { ...msg, isStreaming: false, content: msg.content + "\n\n[Stopped by user]" } : msg
+                );
+                triggerSave(generatedCode, newMsgs);
+                return newMsgs;
+            });
+        }
+    }, [generatedCode, triggerSave]);
+
+    const handleSend = useCallback(async (content: string, images?: string[]) => {
+        const normalized = String(content || '').trim();
+        const now = Date.now();
+        const last = lastUserPromptRef.current;
+        if (last && last.text === normalized && (!images || images.length === 0) && (now - last.time) < 5000) {
+            return;
+        }
+        lastUserPromptRef.current = { text: normalized, time: now };
+
+        const userMsg: Message = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: normalized,
+            images: images
+        };
+
+        const assistantMsgId = (Date.now() + 1).toString();
+        const assistantMsg: Message = {
+            id: assistantMsgId,
+            role: 'assistant',
+            content: '',
+            isStreaming: true
+        };
+
+        setMessages(prev => {
+            const last = prev[prev.length - 1];
+            const shouldAddUser = (!images || images.length === 0) && !(last && last.role === 'user' && last.content.trim() === normalized);
+            const next = [...prev];
+            if (shouldAddUser || (images && images.length > 0)) next.push(userMsg);
+            next.push(assistantMsg);
+            return next;
+        });
+
+        setIsLoading(true);
+        setProgress(10);
+
+        // Start hold music
+        try {
+            if (!holdAudioRef.current) {
+                const audio = new Audio('/voice-sound/loading.mp3');
+                audio.loop = true;
+                audio.volume = 0.6;
+                holdAudioRef.current = audio;
+            }
+            await holdAudioRef.current.play();
+            setIsHoldPlaying(true);
+        } catch { }
+
+        setActiveTab(TabOption.CODE);
+
+        if (abortControllerRef.current) abortControllerRef.current.abort();
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+
+        try {
+            const stream = streamWebsiteCode(normalized, generatedCode, images);
+
+            let fullResponse = '';
+            let codePart = '';
+            let logPart = '';
+            let lastBuildCount = 0;
+            let currentGeneratedCode = generatedCode;
+
+            for await (const chunk of stream) {
+                if (abortController.signal.aborted) break;
+                fullResponse += chunk;
+                const codeStartIndex = fullResponse.indexOf('<!DOCTYPE html>');
+
+                if (codeStartIndex !== -1) {
+                    logPart = fullResponse.substring(0, codeStartIndex);
+                    codePart = fullResponse.substring(codeStartIndex);
+                    currentGeneratedCode = cleanGeneratedCode(codePart);
+                    setGeneratedCode(currentGeneratedCode);
+                    setProgress((p) => (p < 90 ? 90 : p));
+
+                    setMessages(prev => prev.map(msg =>
+                        msg.id === assistantMsgId
+                            ? { ...msg, content: logPart }
+                            : msg
+                    ));
+                } else {
+                    logPart = fullResponse;
+                    setMessages(prev => prev.map(msg =>
+                        msg.id === assistantMsgId
+                            ? { ...msg, content: logPart }
+                            : msg
+                    ));
+                    const buildMatches = logPart.match(/\[BUILD\]/g);
+                    const count = buildMatches ? buildMatches.length : 0;
+                    if (count !== lastBuildCount) {
+                        lastBuildCount = count;
+                        const next = Math.min(85, 10 + count * 6);
+                        setProgress(next);
+                    }
+                }
+            }
+
+            setMessages(prev => {
+                const newMsgs = prev.map(msg =>
+                    msg.id === assistantMsgId ? { ...msg, isStreaming: false } : msg
+                );
+
+                // Save state after generation
+                triggerSave(currentGeneratedCode, newMsgs);
+                return newMsgs;
+            });
+
+            if (!abortController.signal.aborted) {
+                setActiveTab(TabOption.PREVIEW);
+            }
+
+            const successMsg: Message = {
+                id: (Date.now() + 2).toString(),
+                role: 'assistant',
+                content: vi.generation.complete,
+                isStreaming: false,
+                action: {
+                    label: vi.actions.downloadZip,
+                    type: 'download',
+                    payload: { code: currentGeneratedCode, projectName }
+                }
+            };
+
+            setMessages(prev => {
+                const newMsgs = [...prev, successMsg];
+                triggerSave(currentGeneratedCode, newMsgs);
+                return newMsgs;
+            });
+
+            setProgress(100);
+
+            // Fade out music
+            try {
+                if (holdAudioRef.current && isHoldPlaying) {
+                    const target = holdAudioRef.current;
+                    const startVol = target.volume;
+                    const steps = 10;
+                    let i = 0;
+                    const interval = setInterval(() => {
+                        i++;
+                        target.volume = Math.max(0, startVol * (1 - i / steps));
+                        if (i >= steps) {
+                            clearInterval(interval);
+                            target.pause();
+                            target.currentTime = 0;
+                            setIsHoldPlaying(false);
+                        }
+                    }, 120);
+                }
+            } catch { }
+
+        } catch (error) {
+            console.error(error);
+            setMessages(prev => prev.map(msg =>
+                msg.id === assistantMsgId
+                    ? { ...msg, content: "I encountered an error while processing your request.", isStreaming: false }
+                    : msg
+            ));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [generatedCode, triggerSave, isHoldPlaying]);
+
+    const handleStart = (prompt: string, images?: string[]) => {
+        const newName = generateProjectName();
+        setProjectName(newName);
+        setHasStarted(true);
+
+        trackActivity({
+            feature_type: 'web-builder',
+            action_type: 'create',
+            action_details: {
+                project_name: newName,
+                prompt: prompt.substring(0, 100),
+                description: `Started new web project: ${newName}`
+            }
+        });
+
+        handleSend(prompt, images);
     };
 
     useEffect(() => {
@@ -303,113 +505,10 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
         }
     };
 
-    const triggerSave = useCallback((code: string, msgs: Message[]) => {
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = setTimeout(() => {
-            saveProject(code, msgs);
-        }, 2000);
-    }, [projectId, projectName]);
-
-    const handleSend = useCallback(async (content: string) => {
-        const normalized = String(content || '').trim();
-        const now = Date.now();
-        const last = lastUserPromptRef.current;
-        if (last && last.text === normalized && (now - last.time) < 5000) return;
-        lastUserPromptRef.current = { text: normalized, time: now };
-
-        const userMsg: Message = { id: Date.now().toString(), role: 'user', content: normalized };
-        const assistantMsgId = (Date.now() + 1).toString();
-        const assistantMsg: Message = { id: assistantMsgId, role: 'assistant', content: '', isStreaming: true };
-
-        setMessages(prev => {
-            const last = prev[prev.length - 1];
-            const shouldAddUser = !(last && last.role === 'user' && last.content.trim() === normalized);
-            const next = [...prev];
-            if (shouldAddUser) next.push(userMsg);
-            next.push(assistantMsg);
-            return next;
-        });
-
-        setIsLoading(true);
-        setProgress(10);
-        // Sound logic removed for brevity but can be re-added
-        
-        setActiveTab(TabOption.PREVIEW); // Always show Preview as per user request
-
-        if (abortControllerRef.current) abortControllerRef.current.abort();
-        const abortController = new AbortController();
-        abortControllerRef.current = abortController;
-
-        try {
-            const stream = streamWebsiteCode(normalized, generatedCode);
-            let fullResponse = '';
-            let codePart = '';
-            let logPart = '';
-            let currentGeneratedCode = generatedCode;
-
-            for await (const chunk of stream) {
-                if (abortController.signal.aborted) break;
-                fullResponse += chunk;
-                const codeStartIndex = fullResponse.indexOf('<!DOCTYPE html>');
-
-                if (codeStartIndex !== -1) {
-                    logPart = fullResponse.substring(0, codeStartIndex);
-                    codePart = fullResponse.substring(codeStartIndex);
-                    currentGeneratedCode = cleanGeneratedCode(codePart);
-                    setGeneratedCode(currentGeneratedCode);
-                    setProgress((p) => (p < 90 ? 90 : p));
-                    setMessages(prev => prev.map(msg => msg.id === assistantMsgId ? { ...msg, content: logPart } : msg));
-                } else {
-                    logPart = fullResponse;
-                    setMessages(prev => prev.map(msg => msg.id === assistantMsgId ? { ...msg, content: logPart } : msg));
-                    const buildMatches = logPart.match(/\[BUILD\]/g);
-                    const count = buildMatches ? buildMatches.length : 0;
-                    setProgress(Math.min(85, 10 + count * 6));
-                }
-            }
-
-            setMessages(prev => {
-                const newMsgs = prev.map(msg => msg.id === assistantMsgId ? { ...msg, isStreaming: false } : msg);
-                triggerSave(currentGeneratedCode, newMsgs);
-                return newMsgs;
-            });
-
-            if (!abortController.signal.aborted) {
-                setActiveTab(TabOption.PREVIEW);
-            }
-
-            setMessages(prev => [...prev, {
-                id: (Date.now() + 2).toString(),
-                role: 'assistant',
-                content: vi.generation.complete,
-                isStreaming: false
-            }]);
-
-            setProgress(100);
-        } catch (error) {
-            console.error(error);
-            setMessages(prev => prev.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Error processing request.", isStreaming: false } : msg));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [generatedCode, triggerSave]);
-
     const handleCopy = async () => {
         await navigator.clipboard.writeText(generatedCode);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-    };
-
-    const handleStart = (prompt: string) => {
-        const newName = generateProjectName();
-        setProjectName(newName);
-        setHasStarted(true);
-        trackActivity({
-            feature_type: 'web-builder',
-            action_type: 'create',
-            action_details: { project_name: newName, prompt: prompt.substring(0, 100) }
-        });
-        handleSend(prompt);
     };
 
     const handleDeploy = async () => {
@@ -600,160 +699,170 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabOption)} className="hidden md:block">
-                        <TabsList className="h-9 bg-transparent p-0 gap-2">
-                            <TabsTrigger value={TabOption.PREVIEW} className="h-9 px-4 rounded-full data-[state=active]:neu-pressed data-[state=active]:text-[#3b82f6] data-[state=inactive]:neu-btn text-xs">Preview</TabsTrigger>
-                            <TabsTrigger value={TabOption.CODE} className="h-9 px-4 rounded-full data-[state=active]:neu-pressed data-[state=active]:text-[#3b82f6] data-[state=inactive]:neu-btn text-xs">Code</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                    <Button 
-                        onClick={() => setRightPanelOpen(!rightPanelOpen)} 
-                        className={cn("h-9 px-3 md:hidden flex", rightPanelOpen ? "neu-pressed text-[#3b82f6]" : "neu-btn")}
-                        size="icon"
-                    >
-                        <MessageSquare className="w-4 h-4" />
-                    </Button>
-                    <Button onClick={() => setRightPanelOpen(!rightPanelOpen)} className={cn("h-9 px-3 hidden md:flex", rightPanelOpen ? "neu-pressed text-[#3b82f6]" : "neu-btn")}>
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        AI Assistant
-                    </Button>
-                    <Button onClick={handleDeploy} disabled={isDeploying} size="sm" className="neu-btn-primary h-9">
-                        {isDeploying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
-                        Xuất bản
-                    </Button>
-                </div>
-            </div>
-
-            {/* Mobile Tabs Sub-header */}
-            <div className="md:hidden px-4 pb-2 neu-bg z-40 flex items-center justify-center gap-3 transition-all">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabOption)} className="flex-1 max-w-xs transition-all">
-                    <TabsList className="w-full h-9 bg-transparent p-0 grid grid-cols-2 gap-4">
-                        <TabsTrigger 
-                            value={TabOption.PREVIEW} 
-                            className="h-9 rounded-full data-[state=active]:neu-pressed data-[state=active]:text-[#3b82f6] data-[state=inactive]:neu-btn text-xs flex items-center justify-center gap-2 transition-all"
+                <div className="flex items-center gap-2">
+                    {deployedUrl ? (
+                        <div className="flex items-center gap-2 animate-fade-in">
+                            <a 
+                                href={deployedUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-full flex items-center gap-1.5 font-medium hover:bg-green-200 transition-colors"
+                            >
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                Live Preview
+                            </a>
+                        </div>
+                    ) : (
+                        <Button 
+                            size="sm" 
+                            className="h-9 bg-[#3b82f6] hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20 rounded-full px-4"
+                            onClick={handleDeploy}
+                            disabled={isDeploying || !generatedCode}
                         >
-                            <Eye className="w-3 h-3" /> Xem trước
-                        </TabsTrigger>
-                        <TabsTrigger 
-                            value={TabOption.CODE} 
-                            className="h-9 rounded-full data-[state=active]:neu-pressed data-[state=active]:text-[#3b82f6] data-[state=inactive]:neu-btn text-xs flex items-center justify-center gap-2 transition-all"
-                        >
-                            <Code className="w-3 h-3" /> Code
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
-
-                {activeTab === TabOption.CODE && (
+                            {isDeploying ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Đang Deploy...
+                                </>
+                            ) : (
+                                <>
+                                    <Rocket className="w-4 h-4 mr-2" />
+                                    Deploy Free
+                                </>
+                            )}
+                        </Button>
+                    )}
+                    
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={handleCopy}
-                        className="h-9 w-9 neu-btn text-gray-500 flex-shrink-0 animate-fade-in"
+                        className="h-9 w-9 neu-btn text-gray-600"
+                        onClick={() => setRightPanelOpen(!rightPanelOpen)}
                     >
-                        {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                        <Settings className="w-5 h-5" />
                     </Button>
-                )}
+                </div>
             </div>
 
-            <div className="flex-1 flex overflow-hidden relative pb-0">
-                {/* Main Canvas Area */}
-                <div className="flex-1 bg-[#e0e5ec] relative flex flex-col overflow-hidden shadow-inner">
-                    {isLoading && (
-                        <div className="absolute top-0 left-0 w-full h-1 z-50">
-                            <Progress value={progress} className="h-full rounded-none bg-gray-200" indicatorClassName="bg-[#3b82f6]" />
-                        </div>
-                    )}
+            {/* Main Content */}
+            <div className="flex-1 flex overflow-hidden relative">
+                {/* Left Panel - Chat */}
+                <div className={cn(
+                    "flex flex-col border-r border-gray-200 transition-all duration-300 bg-white/50 backdrop-blur-sm",
+                    rightPanelOpen ? "w-1/3 min-w-[350px] max-w-[450px]" : "w-1/2 max-w-[600px]"
+                )}>
+                    <Sidebar 
+                        messages={messages} 
+                        onAction={(action) => {
+                            if (action.type === 'download') {
+                                // Handle download
+                                const blob = new Blob([generatedCode], { type: 'text/html' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `${projectName || 'website'}.html`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                            }
+                             if (action.type === 'fix') {
+                                handleSend(`Fix this error: ${action.payload.error}`);
+                            }
+                        }}
+                    />
                     
-                    <div className="flex-1 flex items-center justify-center p-2 md:p-3 overflow-auto">
-                        <div 
-                            className={cn(
-                                "transition-all duration-300 neu-flat overflow-hidden shadow-xl bg-gray-900",
-                                previewDevice === 'mobile' ? 'w-full h-full md:w-[375px] md:h-[667px] border-[8px] border-gray-800 rounded-[2.5rem]' : 
-                                previewDevice === 'tablet' ? 'w-[768px] h-[1024px] border-[12px] border-gray-800 rounded-[2rem]' : 
-                                'w-[99%] h-[99%] max-w-full rounded-none border-0'
-                            )}
-                        >
-                            <PreviewPane 
-                                code={generatedCode} 
-                                activeTab={activeTab} 
-                                showHeader={previewDevice === 'desktop'}
-                                onTabChange={(tab) => {
-                                    // Prevent switching tabs while building
-                                    if (isLoading) return;
-                                    setActiveTab(tab);
-                                }} 
-                            />
+                    <div className="p-4 bg-white/80 backdrop-blur-md border-t border-gray-200">
+                        <ChatInput 
+                            onSend={handleSend} 
+                            onStop={handleStop}
+                            isLoading={isLoading}
+                            placeholder="Mô tả thay đổi bạn muốn thực hiện..."
+                            isLandingPage={false}
+                        />
+                        <div className="text-[10px] text-center text-gray-400 mt-2">
+                            AI có thể mắc lỗi. Hãy kiểm tra code trước khi sử dụng.
                         </div>
                     </div>
                 </div>
 
-                {/* Right Sidebar - AI Chat */}
-                {rightPanelOpen && (
-                    <div className={cn(
-                        "neu-bg flex flex-col shadow-[-5px_0_15px_rgba(0,0,0,0.05)] z-40 transition-all",
-                        "fixed inset-0 top-14 bottom-16 md:static md:w-80 md:h-full md:inset-auto"
-                    )}>
-                        <div className="p-3 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_5px_#22c55e]" />
-                                <span className="font-semibold text-sm text-gray-700">Trợ lý AI</span>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 neu-btn md:hidden" onClick={() => setRightPanelOpen(false)}>
-                                <Undo className="w-4 h-4" />
-                            </Button>
-                        </div>
-                        <div className="flex-1 overflow-hidden flex flex-col">
-                            <Sidebar messages={messages} />
-                        </div>
-                        <div className="p-4 neu-bg">
-                            <ChatInput 
-                                onSend={handleSend} 
-                                isLoading={isLoading} 
-                                placeholder="Yêu cầu chỉnh sửa..."
-                            />
-                        </div>
+                {/* Right Panel - Preview & Code */}
+                <div className="flex-1 flex flex-col bg-gray-50/50">
+                    <div className="h-10 flex items-center px-2 bg-white border-b border-gray-200">
+                         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabOption)} className="w-full">
+                            <TabsList className="bg-transparent h-full p-0 gap-4">
+                                <TabsTrigger 
+                                    value={TabOption.PREVIEW}
+                                    className="data-[state=active]:bg-transparent data-[state=active]:text-[#3b82f6] data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-[#3b82f6] rounded-none h-full px-1 font-medium text-gray-500"
+                                >
+                                    <Eye className="w-4 h-4 mr-2" />
+                                    Preview
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value={TabOption.CODE}
+                                    className="data-[state=active]:bg-transparent data-[state=active]:text-[#3b82f6] data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-[#3b82f6] rounded-none h-full px-1 font-medium text-gray-500"
+                                >
+                                    <Code className="w-4 h-4 mr-2" />
+                                    Code
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                        
+                        <div className="flex-1" />
+                        
+                        <Button variant="ghost" size="sm" onClick={handleCopy} className="text-xs h-7 gap-1 text-gray-500 hover:text-gray-900">
+                            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            {copied ? 'Copied' : 'Copy Code'}
+                        </Button>
                     </div>
-                )}
+
+                    <div className="flex-1 relative overflow-hidden">
+                        {activeTab === TabOption.PREVIEW ? (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4 overflow-hidden">
+                                <div className={cn(
+                                    "transition-all duration-300 shadow-2xl bg-white overflow-hidden border border-gray-300",
+                                    previewDevice === 'mobile' ? "w-[375px] h-[812px] rounded-[40px] border-[8px] border-gray-800" : 
+                                    previewDevice === 'tablet' ? "w-[768px] h-[1024px] rounded-[20px] border-[8px] border-gray-800" : 
+                                    "w-full h-full rounded-lg"
+                                )}>
+                                    <PreviewPane code={generatedCode} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="w-full h-full bg-[#1e1e1e] overflow-auto p-4 font-mono text-sm text-gray-300">
+                                <pre>{generatedCode}</pre>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Mobile Bottom Navigation Removed - Replaced by Top Controls */}
-            {/* <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 neu-bg z-50 flex items-center justify-around px-2 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">...</div> */}
-
-            {/* Deploy Dialog */}
-            <Dialog open={isDeploying} onOpenChange={() => {}}>
-                <DialogContent className="sm:max-w-md neu-flat border-none">
+            {/* Deployment Success Dialog */}
+             <Dialog open={showDeploySuccess} onOpenChange={setShowDeploySuccess}>
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-3 text-gray-700">
-                            <Loader2 className="w-5 h-5 text-[#3b82f6] animate-spin" />
-                            Đang xuất bản...
+                        <DialogTitle className="flex items-center gap-2 text-green-600">
+                            <Check className="w-5 h-5" />
+                            Triển khai thành công!
                         </DialogTitle>
-                        <DialogDescription className="text-gray-500">
-                            Vui lòng đợi trong khi chúng tôi đưa website của bạn lên internet.
+                        <DialogDescription>
+                            Website của bạn đã sẵn sàng.
                         </DialogDescription>
                     </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                         <div className="p-3 bg-muted rounded-lg break-all text-sm font-mono text-center select-all cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => {
+                             navigator.clipboard.writeText(deployedUrl || '');
+                             // toast
+                         }}>
+                             {deployedUrl}
+                         </div>
+                         <div className="flex gap-2 justify-end">
+                             <Button variant="outline" onClick={() => setShowDeploySuccess(false)}>Đóng</Button>
+                             <Button onClick={() => window.open(deployedUrl || '', '_blank')}>Mở Website</Button>
+                         </div>
+                    </div>
                 </DialogContent>
             </Dialog>
-
-             {/* Deployment Success Banner */}
-             {showDeploySuccess && deployedUrl && (
-                <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg px-4">
-                    <div className="neu-flat p-4 relative animate-fade-in flex items-center gap-4 border border-[#3b82f6]/20">
-                         <div className="bg-[#3b82f6]/10 p-2 rounded-full">
-                            <Rocket className="w-5 h-5 text-[#3b82f6]" />
-                         </div>
-                         <div className="flex-1">
-                             <h4 className="font-bold text-sm">Xuất bản thành công!</h4>
-                             <a href={deployedUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate block max-w-[250px]">
-                                {deployedUrl}
-                             </a>
-                         </div>
-                         <Button variant="ghost" size="icon" onClick={() => setShowDeploySuccess(false)} className="h-6 w-6">
-                             <Undo className="w-4 h-4" />
-                         </Button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

@@ -14,6 +14,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   isStreaming?: boolean;
+  images?: string[];
   action?: {
     label: string;
     type: string;
