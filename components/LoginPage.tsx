@@ -88,8 +88,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
       <div className="relative flex flex-col justify-center px-4 sm:px-12 md:px-20 lg:px-24 xl:px-32 z-20 lg:order-1 h-full">
         {/* Glow background for form area - Desktop only or subtle on mobile */}
         <div className="absolute inset-0 pointer-events-none hidden lg:block">
-          <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-sky-500/10 rounded-full blur-[100px] opacity-50" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px] opacity-40" />
+          <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[100px] opacity-50" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-zinc-500/10 rounded-full blur-[100px] opacity-40" />
         </div>
 
         <div className="relative w-full max-w-md mx-auto lg:max-w-none">
@@ -127,7 +127,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl bg-slate-900/50 border border-slate-800 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all placeholder-slate-600"
+                className="w-full rounded-xl bg-slate-900/50 border border-slate-800 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder-slate-600"
                 placeholder="you@company.com"
               />
             </div>
@@ -140,7 +140,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-slate-900/50 border border-slate-800 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all placeholder-slate-600"
+                className="w-full rounded-xl bg-slate-900/50 border border-slate-800 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder-slate-600"
                 placeholder="••••••••"
               />
             </div>
@@ -182,7 +182,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
 
           <p className="mt-8 text-center text-sm text-slate-500">
             Don't have an account?{" "}
-            <a href="#" className="text-sky-400 hover:text-sky-300 transition-colors">
+            <a href="#" className="text-brand-400 hover:text-brand-300 transition-colors">
               Sign up now
             </a>
           </p>

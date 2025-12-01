@@ -28,10 +28,10 @@ const featureIcons = {
 
 const featureColors = {
   'web-builder': 'text-blue-500',
-  'design': 'text-purple-500',
+  'design': 'text-zinc-500',
   'text': 'text-green-500',
   'search': 'text-yellow-500',
-  'voice': 'text-pink-500',
+  'voice': 'text-zinc-500',
   'automation': 'text-orange-500',
   'settings': 'text-gray-500'
 }

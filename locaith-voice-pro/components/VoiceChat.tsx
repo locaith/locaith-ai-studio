@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from "@google/genai";
 import { VoiceMode, ViewState } from '../types';
+import { LOCAITH_SYSTEM_PROMPT } from '../../services/geminiService';
 
 // Types for internal state
 type VoiceName = 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr';
@@ -143,6 +144,9 @@ QUY TẮC TUYỆT ĐỐI (SYSTEM PRIORITY):
 
 THÔNG TIN CÔNG TY:
 - Locaith Solution (locaith.com).
+
+### ADDITIONAL KNOWLEDGE BASE & COMPLIANCE (LOCAITH SYSTEM PROMPT)
+${LOCAITH_SYSTEM_PROMPT}
 `;
 
 const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFillAndGenerate, lastUserInteraction }) => {
@@ -299,10 +303,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
           try {
               // Attempt using Google Search Grounding
               const response = await aiRef.current.models.generateContent({
-                  model: 'gemini-2.5-flash',
+                  model: 'gemini-2.0-flash-exp',
                   contents: `Trả lời ngắn gọn, chính xác câu hỏi này bằng tiếng Việt, có sử dụng Google Search để lấy thông tin mới nhất: "${query}"`,
                   config: {
-                      tools: [{ googleSearch: {} }] // Enable grounding
+                      tools: [{ googleSearch: {} }], // Enable grounding
+                      systemInstruction: LOCAITH_SYSTEM_PROMPT
                   }
               });
               
@@ -319,8 +324,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
               if (innerError.message?.includes('permission') || innerError.status === 403 || innerError.message?.includes('found')) {
                   console.warn("Search Grounding permission denied, falling back to standard generation.");
                   const response = await aiRef.current.models.generateContent({
-                      model: 'gemini-2.5-flash',
+                      model: 'gemini-2.0-flash-exp',
                       contents: `Trả lời ngắn gọn, chính xác câu hỏi này bằng tiếng Việt: "${query}". (Lưu ý: Không thể truy cập tìm kiếm thời gian thực lúc này, hãy trả lời dựa trên kiến thức có sẵn)`,
+                      config: {
+                        systemInstruction: LOCAITH_SYSTEM_PROMPT
+                      }
                   });
                   return { answer: response.text };
               }
@@ -351,7 +359,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       mediaStreamRef.current = stream;
 
       const sessionPromise = aiRef.current.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: 'gemini-2.0-flash-exp',
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -528,7 +536,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
     setIsTestingVoice(true);
     try {
       const response = await aiRef.current.models.generateContent({
-         model: 'gemini-2.5-flash-preview-tts',
+         model: 'gemini-2.0-flash-exp',
          contents: {
            parts: [{ text: "Chào bạn, mình là Locaith. Mình sẽ đưa bạn đi trải nghiệm tính năng ngay." }]
          },
@@ -617,9 +625,9 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isConnected ? 'bg-black' : 'bg-gray-200'}`}>
                       {isConnected ? (
                           <div className="relative w-full h-full flex items-center justify-center">
-                               <div className="absolute inset-0 bg-blue-500 opacity-30 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+                               <div className="absolute inset-0 bg-zinc-500 opacity-30 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
                                <div 
-                                 className="w-6 h-6 bg-gradient-to-tr from-blue-400 to-purple-500 rounded-full"
+                                 className="w-6 h-6 bg-gradient-to-tr from-zinc-400 to-zinc-600 rounded-full"
                                  style={{ transform: `scale(${0.8 + audioVolume * 0.5})`, transition: 'transform 0.1s' }}
                                ></div>
                           </div>
@@ -750,11 +758,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
          {/* The Orb */}
          <div className="relative w-64 h-64 flex items-center justify-center mb-10">
              <div 
-                className="absolute inset-0 rounded-full bg-blue-500 blur-3xl opacity-20 transition-all duration-100"
+                className="absolute inset-0 rounded-full bg-zinc-600 blur-3xl opacity-20 transition-all duration-100"
                 style={{ transform: `scale(${1 + audioVolume * 2})` }}
              ></div>
              <div 
-                className="absolute inset-0 rounded-full bg-purple-500 blur-3xl opacity-20 mix-blend-screen transition-all duration-150 delay-75"
+                className="absolute inset-0 rounded-full bg-zinc-500 blur-3xl opacity-20 mix-blend-screen transition-all duration-150 delay-75"
                 style={{ transform: `scale(${1 + audioVolume * 1.5})` }}
              ></div>
              
@@ -766,7 +774,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
                    <MicOff className="w-10 h-10 text-gray-500" />
                 ) : (
                    <div className="w-28 h-28 rounded-full bg-black flex items-center justify-center overflow-hidden relative">
-                      <div className="absolute inset-0 bg-gradient-to-t from-blue-500 via-purple-500 to-pink-500 opacity-80 animate-spin-slow blur-md"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-zinc-500 via-zinc-400 to-zinc-600 opacity-80 animate-spin-slow blur-md"></div>
                       <div 
                         className="absolute inset-1 bg-black rounded-full z-10 flex items-center justify-center"
                         style={{ transform: `scale(${0.9 + audioVolume * 0.2})`, transition: 'transform 0.05s ease-out' }}

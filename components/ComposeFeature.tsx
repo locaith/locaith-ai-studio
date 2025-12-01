@@ -1,5 +1,25 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI } from "@google/genai";
+import { LOCAITH_SYSTEM_PROMPT } from "../services/geminiService";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { 
+  FileText, 
+  Send, 
+  Loader2, 
+  Check, 
+  Scale, 
+  ExternalLink, 
+  Maximize2, 
+  Minimize2,
+  Printer,
+  Download,
+  GripVertical,
+  BookOpen,
+  ArrowLeft,
+  Share2
+} from "lucide-react";
 
 // Initialize Gemini
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -149,10 +169,11 @@ export const ComposeFeature: React.FC = () => {
       `;
 
       const searchResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash-exp",
         contents: searchPrompt,
         config: {
           tools: [{ googleSearch: {} }],
+          systemInstruction: LOCAITH_SYSTEM_PROMPT,
         }
       });
 
@@ -211,8 +232,11 @@ export const ComposeFeature: React.FC = () => {
       `;
 
       const draftResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash-exp",
         contents: draftingPrompt,
+        config: {
+          systemInstruction: LOCAITH_SYSTEM_PROMPT,
+        }
       });
 
       addStep("Đang hoàn thiện định dạng theo chuẩn Nghị định 30/2020/NĐ-CP...");
@@ -271,48 +295,54 @@ export const ComposeFeature: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full bg-transparent overflow-hidden animate-fade-in-up selection:bg-accent-500/30 flex-col md:flex-row">
+    <div className="flex h-full neu-bg overflow-hidden animate-fade-in-up selection:bg-accent-500/30 flex-col md:flex-row text-gray-700">
 
       {/* Left Column: Chat & Research */}
       <div
         style={{ width: leftWidth }}
-        className={`${activeMobileTab === 'chat' ? 'flex' : 'hidden'} md:flex flex-col border-r border-gray-200 bg-white/90 backdrop-blur-md z-10 shadow-xl relative flex-shrink-0 w-full md:w-auto h-full`}
+        className={`${activeMobileTab === 'chat' ? 'flex' : 'hidden'} md:flex flex-col border-r border-gray-200/50 neu-bg z-10 relative flex-shrink-0 w-full md:w-auto h-full`}
       >
-        <div className="p-4 border-b border-gray-200 flex items-center gap-2">
-          <div className="bg-accent-100 p-2 rounded-lg text-accent-600">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
-          </div>
-          <div>
-            <h2 className="font-bold text-gray-900">Soạn thảo Văn bản</h2>
-            <p className="text-xs text-gray-500">Chuẩn Nghị định 30/2020/NĐ-CP</p>
+        <div className="h-14 md:h-auto p-0 md:p-4 border-b border-gray-200/50 flex items-center gap-2 neu-bg sticky top-0 z-50 md:static">
+          <div className="flex items-center gap-2 px-4 md:px-0 w-full h-full">
+            <div className="neu-pressed h-10 w-10 flex items-center justify-center rounded-xl text-primary md:flex hidden">
+                <FileText className="w-5 h-5" />
+            </div>
+            {/* Mobile Icon */}
+             <div className="md:hidden neu-pressed h-9 w-9 flex items-center justify-center rounded-full text-primary">
+                <FileText className="w-5 h-5" />
+            </div>
+            <div>
+                <h2 className="font-bold text-foreground md:text-base text-sm">Soạn thảo Văn bản</h2>
+                <p className="text-xs text-muted-foreground hidden md:block">Chuẩn Nghị định 30/2020/NĐ-CP</p>
+            </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-              <div className={`max-w-[90%] p-3 rounded-xl text-sm ${msg.role === 'user'
-                  ? 'bg-accent-600 text-white rounded-br-none'
-                  : 'bg-gray-100 text-gray-800 rounded-bl-none'
+              <div className={`max-w-[90%] p-3 rounded-xl text-sm transition-all ${msg.role === 'user'
+                  ? 'neu-pressed text-primary font-medium rounded-br-none border border-primary/20'
+                  : 'neu-flat text-foreground rounded-bl-none'
                 }`}>
                 {msg.content}
               </div>
 
               {/* Source Citations Popup/Card Style */}
               {msg.sources && msg.sources.length > 0 && (
-                <div className="mt-3 w-full max-w-[90%] bg-white border border-gray-200 rounded-xl p-4 shadow-lg relative group">
-                  <div className="absolute -left-1 top-4 w-1 h-8 bg-brand-500 rounded-r-full"></div>
-                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <span className="p-1 bg-brand-100 text-brand-600 rounded-md">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                <div className="mt-3 w-full max-w-[90%] neu-flat rounded-xl p-4 relative group">
+                  <div className="absolute -left-1 top-4 w-1 h-8 bg-primary rounded-r-full"></div>
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span className="p-1 neu-pressed rounded-md text-primary">
+                      <Scale className="w-3 h-3" />
                     </span>
                     Căn cứ pháp lý
                   </div>
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
                     {msg.sources.map((source, sIdx) => (
-                      <div key={sIdx} className="relative pl-3 border-l-2 border-gray-200 hover:border-brand-500 transition-colors">
+                      <div key={sIdx} className="relative pl-3 border-l-2 border-gray-200 hover:border-primary transition-colors">
                         <a href={source.uri} target="_blank" rel="noopener noreferrer" className="block group-item">
-                          <div className="text-xs font-semibold text-gray-800 group-hover:text-brand-600 transition-colors line-clamp-2">
+                          <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                             {source.title}
                           </div>
                           <div className="flex items-center gap-1 mt-1">
@@ -322,7 +352,7 @@ export const ComposeFeature: React.FC = () => {
                               className="w-3 h-3 opacity-60"
                               onError={(e) => (e.currentTarget.style.display = 'none')}
                             />
-                            <div className="text-[10px] text-gray-400 truncate">{new URL(source.uri).hostname}</div>
+                            <div className="text-[10px] text-muted-foreground truncate">{new URL(source.uri).hostname}</div>
                           </div>
                         </a>
                       </div>
@@ -335,18 +365,18 @@ export const ComposeFeature: React.FC = () => {
 
           {/* Persistent Streaming Steps Visualization */}
           {processingSteps.length > 0 && (
-            <div className="ml-2 space-y-2 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
-              <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Quy trình xử lý</div>
+            <div className="ml-2 space-y-2 neu-pressed p-3 rounded-lg">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Quy trình xử lý</div>
               {processingSteps.map((step, idx) => (
                 <div key={idx} className="flex items-center gap-2 animate-fade-in-up">
                   {idx === processingSteps.length - 1 && isLoading ? (
                     <span className="w-4 h-4 flex items-center justify-center">
-                      <span className="w-2 h-2 bg-accent-500 rounded-full animate-ping"></span>
+                      <Loader2 className="w-3 h-3 animate-spin text-primary" />
                     </span>
                   ) : (
-                    <span className="text-green-500 w-4 h-4 flex items-center justify-center text-[10px]">✓</span>
+                    <Check className="w-4 h-4 text-green-500" />
                   )}
-                  <span className={`text-xs ${idx === processingSteps.length - 1 && isLoading ? 'text-accent-600 font-medium' : 'text-gray-500'}`}>
+                  <span className={`text-xs ${idx === processingSteps.length - 1 && isLoading ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
                     {step}
                   </span>
                 </div>
@@ -355,64 +385,82 @@ export const ComposeFeature: React.FC = () => {
           )}
         </div>
 
-        <div className="p-4 border-t border-gray-200">
-          <div className="relative">
-            <textarea
+        <div className="p-4 border-t border-gray-200/50">
+          <div className="relative neu-pressed rounded-2xl p-1 bg-gray-50/50">
+            <Textarea
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="Ví dụ: Soạn công văn gửi Bộ Tài chính về việc..."
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent-500 focus:outline-none resize-none h-24"
+              className="w-full bg-transparent border-none focus:ring-0 resize-none min-h-[96px] text-foreground placeholder:text-muted-foreground"
             />
-            <button
+            <Button
+              size="icon"
               onClick={handleSend}
               disabled={isLoading || !chatInput.trim()}
-              className="absolute bottom-2 right-2 p-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 disabled:opacity-50 transition-colors"
+              className={cn(
+                "absolute bottom-2 right-2 h-8 w-8 transition-all duration-200",
+                isLoading || !chatInput.trim() 
+                  ? "neu-flat text-muted-foreground cursor-not-allowed" 
+                  : "neu-btn hover:text-primary active:scale-95"
+              )}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-            </button>
+              <Send className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
         {/* Drag Handle */}
         <div
-          className="hidden md:block absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-accent-500/50 transition-colors z-20"
+          className="hidden md:block absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-primary/50 transition-colors z-20"
           onMouseDown={startResizing}
         ></div>
 
         {/* Mobile Switch to Document Button */}
-        <button
+        <Button
           onClick={() => setActiveMobileTab('document')}
-          className="md:hidden absolute bottom-20 right-4 z-50 bg-brand-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce"
+          className="md:hidden absolute bottom-20 right-4 z-50 neu-btn text-primary rounded-full gap-2 animate-bounce"
         >
+          <FileText className="w-4 h-4" />
           <span>Xem văn bản</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-        </button>
+        </Button>
       </div>
 
       {/* Right Column: A4 Preview */}
-      <div className={`${activeMobileTab === 'document' ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full overflow-hidden relative bg-white/50 backdrop-blur-sm`}>
-        <div className="h-14 bg-white/90 border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shadow-sm z-20 sticky top-0 md:static">
+      <div className={`${activeMobileTab === 'document' ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full overflow-hidden relative neu-bg`}>
+        <div className="h-14 neu-bg border-b border-border flex items-center justify-between px-4 md:px-6 z-20 sticky top-0 md:static">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-600">Xem trước văn bản (A4)</span>
-            <span className="px-2 py-0.5 bg-gray-100 text-[10px] text-gray-500 rounded border border-gray-200">Chế độ chỉnh sửa</span>
+            <span className="text-sm font-medium text-foreground">Xem trước (A4)</span>
+            <span className="hidden md:inline-block px-2 py-0.5 neu-pressed text-[10px] text-muted-foreground rounded">Chế độ chỉnh sửa</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handlePrint} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            <Button variant="ghost" size="sm" onClick={handlePrint} className="md:flex hidden neu-btn text-muted-foreground hover:text-foreground">
+              <Printer className="w-4 h-4 mr-2" />
               In ấn
+            </Button>
+            <button onClick={handlePrint} className="md:hidden neu-btn h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground">
+                <Printer className="w-4 h-4" />
             </button>
-            <button onClick={handleDownload} className="p-2 text-gray-500 hover:text-brand-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              Tải Word (.doc)
+            
+            <Button variant="ghost" size="sm" onClick={handleDownload} className="md:flex hidden neu-btn text-muted-foreground hover:text-primary">
+              <Download className="w-4 h-4 mr-2" />
+              Tải Word
+            </Button>
+             <button onClick={handleDownload} className="md:hidden neu-btn h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground">
+                <Download className="w-4 h-4" />
             </button>
-            <button className="px-4 py-1.5 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-500 transition-colors shadow-lg shadow-brand-500/20">
-              Chia sẻ Link
+
+            <Button size="sm" className="md:flex hidden neu-btn text-primary hover:text-primary/80">
+              <Share2 className="w-4 h-4 mr-2" />
+              Chia sẻ
+            </Button>
+             <button className="md:hidden neu-btn h-9 w-9 flex items-center justify-center rounded-full text-primary">
+                <Share2 className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-200/50 flex justify-center items-start">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 neu-pressed flex justify-center items-start">
           <div
             className="bg-white text-black shadow-2xl print:shadow-none transition-all w-full md:w-[210mm] md:min-h-[297mm]"
             style={{
@@ -428,20 +476,20 @@ export const ComposeFeature: React.FC = () => {
             <div
               contentEditable
               dangerouslySetInnerHTML={{ __html: docContent }}
-              className="outline-none focus:ring-1 focus:ring-brand-500/20 min-h-full"
+              className="outline-none focus:ring-1 focus:ring-primary/20 min-h-full"
               onBlur={(e) => setDocContent(e.currentTarget.innerHTML)}
             />
           </div>
         </div>
 
         {/* Mobile Switch to Chat Button */}
-        <button
+        <Button
           onClick={() => setActiveMobileTab('chat')}
-          className="md:hidden absolute bottom-6 right-4 z-50 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2"
+          className="md:hidden absolute bottom-6 right-4 z-50 neu-btn text-foreground rounded-full shadow-lg gap-2"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          <ArrowLeft className="w-4 h-4" />
           <span>Quay lại Chat</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

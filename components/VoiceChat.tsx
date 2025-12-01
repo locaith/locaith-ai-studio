@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+﻿﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
   MicOff,
@@ -13,6 +12,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from "@google/genai";
+import { LOCAITH_SYSTEM_PROMPT } from "../services/geminiService";
 import { VoiceMode, ViewState } from '../src/types/voice';
 
 // Types for internal state
@@ -87,7 +87,7 @@ const generalKnowledgeTool: FunctionDeclaration = {
     },
     required: ['query']
   }
-}
+};
 
 // --- Audio Helper Functions ---
 
@@ -143,6 +143,9 @@ QUY TẮC TUYỆT ĐỐI (SYSTEM PRIORITY):
 
 THÔNG TIN CÔNG TY:
 - Locaith Solution (locaith.com).
+
+### CORE SYSTEM COMPLIANCE (LOCAITH GLOBAL STANDARD)
+${LOCAITH_SYSTEM_PROMPT}
 `;
 
 const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFillAndGenerate, lastUserInteraction }) => {
@@ -367,10 +370,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       try {
         // Attempt using Google Search Grounding
         const response = await aiRef.current.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-2.0-flash-exp',
           contents: `Trả lời ngắn gọn, chính xác câu hỏi này bằng tiếng Việt, có sử dụng Google Search để lấy thông tin mới nhất: "${query}"`,
           config: {
-            tools: [{ googleSearch: {} }] // Enable grounding
+            tools: [{ googleSearch: {} }], // Enable grounding
+            systemInstruction: LOCAITH_SYSTEM_PROMPT
           }
         });
 
@@ -387,8 +391,11 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
         if (innerError.message?.includes('permission') || innerError.status === 403 || innerError.message?.includes('found')) {
           console.warn("Search Grounding permission denied, falling back to standard generation.");
           const response = await aiRef.current.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash-exp',
             contents: `Trả lời ngắn gọn, chính xác câu hỏi này bằng tiếng Việt: "${query}". (Lưu ý: Không thể truy cập tìm kiếm thời gian thực lúc này, hãy trả lời dựa trên kiến thức có sẵn)`,
+            config: {
+                systemInstruction: LOCAITH_SYSTEM_PROMPT
+            }
           });
           return { answer: response.text };
         }
@@ -435,11 +442,23 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
         inputCtx.resume().catch(e => console.warn("Auto-resume failed:", e));
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err: any) {
+        console.error("Microphone access error:", err);
+        if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          throw new Error("Không tìm thấy Microphone. Vui lòng kiểm tra kết nối thiết bị.");
+        } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          throw new Error("Vui lòng cho phép truy cập Microphone để sử dụng tính năng này.");
+        } else {
+          throw new Error(`Lỗi Microphone: ${err.message || "Không xác định"}`);
+        }
+      }
       mediaStreamRef.current = stream;
 
       const sessionPromise = aiRef.current.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: 'gemini-2.0-flash-exp',
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -525,25 +544,22 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
                         }
                       });
                     });
-                    continue;
-                  }
-                  lastProcessedPromptRef.current = { text: prompt, time: now };
+                  } else {
+                    lastProcessedPromptRef.current = { text: prompt, time: now };
+                    onFillAndGenerate(prompt);
 
-                  // CRITICAL: Minimize to widget when generating
-                  setMode('WIDGET');
-
-                  onFillAndGenerate(prompt);
-                  sessionPromise.then(session => {
-                    session.sendToolResponse({
-                      functionResponses: {
-                        id: fc.id,
-                        name: fc.name,
-                        response: { result: 'success' }
-                      }
+                    sessionPromise.then(session => {
+                      session.sendToolResponse({
+                        functionResponses: {
+                          id: fc.id,
+                          name: fc.name,
+                          response: { result: 'success' }
+                        }
+                      });
                     });
-                  });
+                  }
                 } else if (fc.name === 'get_crypto_price') {
-                  const symbol = (fc.args as any).symbol || 'BTC';
+                  const symbol = (fc.args as any).symbol;
                   const data = await fetchCryptoData(symbol);
                   sessionPromise.then(session => {
                     session.sendToolResponse({
@@ -556,7 +572,6 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
                   });
                 } else if (fc.name === 'get_general_knowledge') {
                   const query = (fc.args as any).query;
-                  // Call the bridge to text model
                   const data = await fetchGeneralKnowledge(query);
                   sessionPromise.then(session => {
                     session.sendToolResponse({
@@ -571,416 +586,334 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
               }
             }
 
-            // Handle Audio
-            const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-            if (audioData) {
-              const outputCtx = outputAudioContextRef.current;
-              if (outputCtx) {
-                nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputCtx.currentTime);
-                const audioBuffer = await decodeAudioData(decode(audioData), outputCtx, 24000, 1);
-                const source = outputCtx.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(outputCtx.destination);
-                source.addEventListener('ended', () => {
-                  sourcesRef.current.delete(source);
-                });
-                source.start(nextStartTimeRef.current);
-                nextStartTimeRef.current += audioBuffer.duration;
-                sourcesRef.current.add(source);
-                setAudioVolume(0.5 + Math.random() * 0.3);
+            if (msg.serverContent?.modelTurn?.parts) {
+              for (const part of msg.serverContent.modelTurn.parts) {
+                if (part.text) {
+                  // Only add if different from last AI transcript to avoid duplicates
+                  // (Basic check - improved by handling IDs if available)
+                  if (part.text !== currentOutputTransRef.current) {
+                     currentOutputTransRef.current = part.text;
+                     setTranscripts(prev => {
+                         const last = prev[prev.length - 1];
+                         if (last && last.sender === 'ai') {
+                             return [...prev.slice(0, -1), { ...last, text: last.text + part.text }];
+                         }
+                         return [...prev, { sender: 'ai', text: part.text, id: Date.now() }];
+                     });
+                  }
+                }
+                if (part.inlineData && part.inlineData.mimeType.startsWith('audio/pcm')) {
+                   const pcmData = decode(part.inlineData.data);
+                   const buffer = await decodeAudioData(pcmData, outputAudioContextRef.current!, 24000, 1);
+                   
+                   const source = outputAudioContextRef.current!.createBufferSource();
+                   source.buffer = buffer;
+                   source.connect(outputAudioContextRef.current!.destination);
+                   
+                   const now = outputAudioContextRef.current!.currentTime;
+                   // Schedule next chunk
+                   const start = Math.max(now, nextStartTimeRef.current);
+                   source.start(start);
+                   nextStartTimeRef.current = start + buffer.duration;
+                   
+                   sourcesRef.current.add(source);
+                   source.onended = () => sourcesRef.current.delete(source);
+                }
               }
-            }
-
-            // Handle Transcription
-            const outTrans = msg.serverContent?.outputTranscription;
-            const inTrans = msg.serverContent?.inputTranscription;
-
-            if (outTrans?.text) {
-              currentOutputTransRef.current += outTrans.text;
-              updateTranscript('ai', currentOutputTransRef.current, false);
-            }
-            if (inTrans?.text) {
-              currentInputTransRef.current += inTrans.text;
-              updateTranscript('user', currentInputTransRef.current, false);
-            }
-
-            if (msg.serverContent?.turnComplete) {
-              if (currentInputTransRef.current) {
-                updateTranscript('user', currentInputTransRef.current, true);
-                currentInputTransRef.current = '';
-              }
-              if (currentOutputTransRef.current) {
-                updateTranscript('ai', currentOutputTransRef.current, true);
-                currentOutputTransRef.current = '';
-              }
-              setAudioVolume(0);
             }
           },
           onclose: () => {
-            setIsConnected(false);
-            console.log("Connection closed");
+             console.log("🔴 Connection Closed");
+             cleanup();
           },
-          onerror: (e) => {
-            console.error("Voice Socket Error:", e);
-            setConnectionError("Connection error. Check API Key or Network.");
-            setIsConnected(false);
+          onerror: (err) => {
+             console.error("🔴 Connection Error:", err);
+             setConnectionError(err.message);
+             cleanup();
           }
         }
       });
-
+      
       sessionRef.current = sessionPromise;
 
-    } catch (err: any) {
-      console.error("Connection failed", err);
-      setConnectionError(err.message || "Failed to connect to Gemini Live");
-      setIsConnected(false);
-      isConnectingRef.current = false;
+    } catch (e: any) {
+      console.error("Connection Setup Error:", e);
+      setConnectionError(e.message);
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
   };
 
-  const handleTestVoice = async () => {
-    if (!aiRef.current) return;
-    setIsTestingVoice(true);
-    try {
-      const response = await aiRef.current.models.generateContent({
-        model: 'gemini-2.5-flash-preview-tts',
-        contents: {
-          parts: [{ text: "Chào bạn, mình là Locaith. Mình sẽ đưa bạn đi trải nghiệm tính năng ngay." }]
-        },
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
-          },
-        }
-      });
-
-      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if (audioData) {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        const audioBuffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
-        const source = ctx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(ctx.destination);
-        source.start();
-      }
-    } catch (e) {
-      console.error("Voice test failed", e);
-    } finally {
-      setIsTestingVoice(false);
-    }
-  };
-
-  const handleSaveSettings = () => {
-    setShowSettings(false);
-    if (isConnected) {
-      cleanup();
-      setTimeout(() => {
-        connect();
-      }, 500);
-    }
-  };
-
-  const updateTranscript = (sender: 'user' | 'ai', text: string, isFinal: boolean) => {
-    setTranscripts(prev => {
-      const newArr = [...prev];
-
-      // Anti-repetition for UI display: Check if the exact same text was the last message from AI
-      if (sender === 'ai' && newArr.length > 0) {
-        const lastMsg = newArr[newArr.length - 1];
-        if (lastMsg.sender === 'ai' && lastMsg.id !== lastAiTranscriptId.current && lastMsg.text.trim() === text.trim()) {
-          // Duplicate message detected, ignore it
-          return prev;
-        }
-      }
-
-      let idRef = sender === 'user' ? lastUserTranscriptId : lastAiTranscriptId;
-
-      if (idRef.current !== null) {
-        const idx = newArr.findIndex(t => t.id === idRef.current);
-        if (idx !== -1) {
-          newArr[idx] = { ...newArr[idx], text };
-        } else {
-          const newId = transcriptIdCounter.current++;
-          idRef.current = newId;
-          newArr.push({ sender, text, id: newId });
-        }
-      } else {
-        const newId = transcriptIdCounter.current++;
-        idRef.current = newId;
-        newArr.push({ sender, text, id: newId });
-      }
-
-      if (isFinal) {
-        idRef.current = null;
-      }
-      return newArr;
-    });
-  };
-
-  const handleClose = () => {
-    console.log('🔒 User closed Voice Chat');
+  const disconnect = () => {
     cleanup();
-    // Force reset all refs
-    sessionRef.current = null;
-    isConnectingRef.current = false;
-    setMode('HIDDEN');
   };
 
-  // --- WIDGET MODE RENDER ---
-  if (mode === 'WIDGET') {
-    return (
-      <div className="absolute bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-4">
-        <div className="bg-white/90 backdrop-blur-xl border border-gray-200 shadow-2xl rounded-full p-2 flex items-center space-x-3 pr-4 ring-1 ring-black/5">
-          {/* Visualizer Mini */}
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isConnected ? 'bg-black' : 'bg-gray-200'}`}>
-            {isConnected ? (
-              <div className="relative w-full h-full flex items-center justify-center">
-                <div className="absolute inset-0 bg-blue-500 opacity-30 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
-                <div
-                  className="w-6 h-6 bg-gradient-to-tr from-blue-400 to-purple-500 rounded-full"
-                  style={{ transform: `scale(${0.8 + audioVolume * 0.5})`, transition: 'transform 0.1s' }}
-                ></div>
-              </div>
-            ) : (
-              <MicOff className="w-5 h-5 text-gray-500" />
-            )}
-          </div>
-
-          {/* Info */}
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-gray-900">Locaith AI</span>
-            <span className="text-[10px] text-gray-500 flex items-center gap-1">
-              {isConnected && !isMuted ? <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> : <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>}
-              {isConnected ? (isMuted ? 'Mic Muted' : 'Listening...') : 'Paused'}
-            </span>
-          </div>
-
-          {/* Controls */}
-          <div className="flex items-center space-x-1 pl-2 border-l border-gray-200">
-            <button onClick={() => {
-              playSound(isMuted ? 'unmute' : 'mute');
-              setIsMuted(!isMuted);
-            }} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600">
-              {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-            </button>
-            <button onClick={() => setMode('FULL')} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600">
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={handleClose} className="p-1.5 hover:bg-red-50 rounded-full text-red-500">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- FULL MODE RENDER ---
   return (
-    <div className="absolute inset-0 z-40 bg-gray-900 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-
-      {/* --- Header --- */}
-      <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-20">
-        <div className="flex items-center space-x-2">
-          <span className={`w-2 h-2 rounded-full animate-pulse ${isConnected ? 'bg-red-500' : 'bg-gray-500'}`}></span>
-          <span className="text-white font-medium text-sm tracking-widest uppercase opacity-80">
-            {isConnected ? 'Live Voice Mode' : 'Voice Chat Ready'}
-          </span>
+    <>
+      {/* Main UI - only visible in FULL mode or when not minimized */}
+      <div className={`flex flex-col h-full bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 transition-all duration-500 ${mode === 'WIDGET' ? 'hidden' : ''}`}>
+        
+        {/* Header - Glassmorphism */}
+        <div className="flex items-center justify-between px-6 py-4 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b border-indigo-100 dark:border-indigo-900/50 z-10 sticky top-0">
+          <div className="flex items-center space-x-3">
+             <div className="relative">
+                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-slate-400'} shadow-sm`} />
+                {isConnected && <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-500 animate-ping opacity-75" />}
+             </div>
+             <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+                Locaith Voice Pro
+             </h2>
+             <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold tracking-wider uppercase border border-indigo-200 dark:border-indigo-800">
+                Beta
+             </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button 
+                onClick={() => setShowSettings(!showSettings)} 
+                className="p-2.5 rounded-full bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 text-slate-600 dark:text-slate-300 transition-all hover:shadow-md border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900"
+                title="Cài đặt"
+            >
+              <Settings size={18} />
+            </button>
+            <button 
+                onClick={() => setMode('WIDGET')} 
+                className="p-2.5 rounded-full bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 text-slate-600 dark:text-slate-300 transition-all hover:shadow-md border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900"
+                title="Thu nhỏ"
+            >
+               <Minimize2 size={18} />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setMode('WIDGET')}
-            className="p-2 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all"
-            title="Minimize"
-          >
-            <Minimize2 className="w-5 h-5" />
-          </button>
 
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="p-2 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-
-          <button
-            onClick={handleClose}
-            className="p-2 text-gray-400 hover:text-red-400 bg-white/5 hover:bg-white/10 rounded-full transition-all"
-          >
-            <X className="w-5 h-5" />
-          </button>
+        {/* Chat Area */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth custom-scrollbar">
+           {/* Welcome Message */}
+           <div className="flex justify-start animate-fade-in-up">
+              <div className="group relative max-w-[85%] md:max-w-[75%]">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl rounded-tl-none opacity-20 group-hover:opacity-30 transition duration-500 blur"></div>
+                  <div className="relative bg-white dark:bg-gray-800 p-5 rounded-2xl rounded-tl-none border border-indigo-100 dark:border-indigo-900/50 shadow-sm">
+                     <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                            AI
+                        </div>
+                        <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Trợ lý Locaith</span>
+                     </div>
+                     <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        <p className="mb-2">Chào bạn! Tôi là <strong>Locaith Voice</strong>. Hãy trò chuyện với tôi để trải nghiệm sức mạnh của AI.</p>
+                        <p className="mb-1">Bạn có thể yêu cầu tôi:</p>
+                        <ul className="mt-1 space-y-1 list-disc list-inside text-slate-600 dark:text-slate-400 pl-1">
+                            <li>Tra cứu thông tin thời gian thực</li>
+                            <li>Viết nội dung sáng tạo</li>
+                            <li>Điều khiển các tính năng ứng dụng</li>
+                        </ul>
+                     </div>
+                  </div>
+              </div>
+           </div>
+           
+           {transcripts.map((t) => (
+             <div key={t.id} className={`flex ${t.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
+                {t.sender === 'ai' ? (
+                    <div className="group relative max-w-[85%] md:max-w-[75%]">
+                        <div className="relative bg-white dark:bg-gray-800 p-5 rounded-2xl rounded-tl-none border border-indigo-100 dark:border-indigo-900/50 shadow-sm hover:shadow-md transition-all">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold">
+                                    AI
+                                </div>
+                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Locaith</span>
+                            </div>
+                            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{t.text}</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="max-w-[85%] md:max-w-[75%]">
+                        <div className="bg-gradient-to-br from-indigo-600 to-purple-600 text-white p-4 rounded-2xl rounded-tr-none shadow-lg shadow-indigo-500/20">
+                           <p className="text-sm leading-relaxed">{t.text}</p>
+                        </div>
+                    </div>
+                )}
+             </div>
+           ))}
+           
+           {/* Thinking Indicator */}
+           {isConnected && transcripts.length > 0 && transcripts[transcripts.length - 1].sender === 'user' && (
+               <div className="flex justify-start animate-pulse">
+                   <div className="bg-white/50 dark:bg-gray-800/50 p-3 rounded-2xl rounded-tl-none border border-indigo-50 dark:border-indigo-900/30 flex items-center gap-1">
+                       <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                       <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                       <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                   </div>
+               </div>
+           )}
+           <div ref={scrollEndRef} />
         </div>
 
-        {/* Settings Popover */}
-        {showSettings && (
-          <div className="absolute right-6 top-16 w-96 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white font-semibold">Voice Settings</h3>
-              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white"><X className="w-4 h-4" /></button>
-            </div>
+        {/* Controls Area - Glassmorphism */}
+        <div className="p-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-indigo-100 dark:border-indigo-900/50 flex flex-col items-center gap-6 z-10 relative">
+           {/* Error Alert */}
+           {connectionError && (
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center space-x-2 text-red-600 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-4 py-2 rounded-full text-sm shadow-lg animate-bounce">
+                 <AlertTriangle size={16} />
+                 <span>{connectionError}</span>
+              </div>
+           )}
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-gray-400 uppercase font-bold block mb-2">Voice Model</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'] as VoiceName[]).map(v => (
+           {/* Visualizer */}
+           <div className="w-full max-w-xs h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+               {isConnected ? (
+                   <div 
+                       className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-100 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                       style={{ width: `${Math.max(5, Math.min(audioVolume * 100, 100))}%` }}
+                   />
+               ) : (
+                   <div className="h-full w-full bg-slate-200 dark:bg-slate-700 opacity-50" />
+               )}
+           </div>
+
+           {/* Main Controls */}
+           <div className="flex items-center justify-center gap-8">
+              {!isConnected ? (
+                 <button
+                    onClick={connect}
+                    disabled={isConnecting}
+                    className={`group relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-xl ${
+                       isConnecting 
+                       ? 'bg-slate-200 dark:bg-slate-700 cursor-not-allowed' 
+                       : 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-indigo-500/30 hover:shadow-indigo-500/50'
+                    }`}
+                 >
+                    {isConnecting ? (
+                        <div className="absolute inset-0 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin" />
+                    ) : (
+                        <>
+                            <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+                            <Mic size={32} className="relative z-10" />
+                        </>
+                    )}
+                 </button>
+              ) : (
+                 <>
                     <button
-                      key={v}
-                      onClick={() => setSelectedVoice(v)}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${selectedVoice === v ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                       onClick={() => setIsMuted(!isMuted)}
+                       className={`p-4 rounded-full transition-all duration-300 border shadow-sm hover:shadow-md ${
+                          isMuted 
+                          ? 'bg-red-50 border-red-200 text-red-500 dark:bg-red-900/20 dark:border-red-800' 
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:bg-gray-800 dark:border-gray-700 dark:text-slate-300'
+                       }`}
+                       title={isMuted ? "Bật micro" : "Tắt micro"}
                     >
-                      {v}
+                       {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
                     </button>
-                  ))}
-                </div>
-              </div>
 
-              <div>
-                <label className="text-xs text-gray-400 uppercase font-bold block mb-2">System Instruction</label>
-                <textarea
-                  value={systemInstruction}
-                  onChange={(e) => setSystemInstruction(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm text-gray-200 focus:border-blue-500 outline-none h-32 resize-none scrollbar-hide"
-                />
-              </div>
-
-              <div className="pt-4 border-t border-gray-700 flex space-x-3">
-                <button
-                  onClick={handleTestVoice}
-                  disabled={isTestingVoice}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-xs font-medium flex items-center justify-center space-x-2 transition-colors"
-                >
-                  {isTestingVoice ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Volume2 className="w-3 h-3" />}
-                  <span>Test Voice</span>
-                </button>
-                <button
-                  onClick={handleSaveSettings}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-xs font-medium flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <span>Save & Apply</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* --- Main Visual Area (Orb) --- */}
-      <div className="flex-1 flex flex-col items-center justify-center relative">
-
-        {/* Status Text */}
-        {connectionError ? (
-          <div className="flex items-center space-x-2 text-red-400 bg-red-500/10 px-4 py-1 rounded-full border border-red-500/20">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="text-xs font-medium">{connectionError}</span>
-          </div>
-        ) : isConnecting ? (
-          <div className="flex items-center space-x-2 text-blue-400 bg-blue-500/10 px-4 py-1 rounded-full border border-blue-500/20">
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-xs font-medium">Connecting to Voice...</span>
-          </div>
-        ) : isConnected ? (
-          <p className="text-gray-400 text-sm animate-pulse flex items-center justify-center gap-2">
-            {isMuted ? (
-              <span className="text-red-400 font-medium flex items-center gap-2">
-                <MicOff className="w-4 h-4" />
-                Microphone is muted
-              </span>
-            ) : audioVolume > 0.05 ? (
-              <span className="text-blue-400 font-medium">Listening / Speaking...</span>
-            ) : (
-              "Listening..."
-            )}
-          </p>
-        ) : (
-          <p className="text-gray-500 text-sm">Ready to connect</p>
-        )}
-      </div>
-
-      {/* Transcripts Container */}
-      <div className="w-full max-w-2xl px-6 max-h-[400px] overflow-y-auto scrollbar-hide mask-linear-fade">
-        <div className="space-y-3 flex flex-col justify-end min-h-full pb-4">
-          {transcripts.length === 0 && isConnected && (
-            <div className="text-center text-gray-600 text-xs italic">Conversation will appear here...</div>
-          )}
-          {transcripts.map((t) => (
-            <div key={t.id} className={`flex ${t.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`
-                         max-w-[80%] px-4 py-2 rounded-2xl text-sm
-                         ${t.sender === 'user' ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30' : 'bg-gray-800/50 text-gray-200 border border-gray-700'}
-                      `}>
-                {t.text}
-              </div>
-            </div>
-          ))}
-          <div ref={scrollEndRef} />
+                    <button
+                       onClick={disconnect}
+                       className="group w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-pink-600 text-white flex items-center justify-center shadow-xl shadow-red-500/30 hover:shadow-red-500/50 transition-all transform hover:scale-105 active:scale-95"
+                       title="Ngắt kết nối"
+                    >
+                       <X size={32} className="group-hover:rotate-90 transition-transform duration-300" />
+                    </button>
+                    
+                    <div className="w-[58px]" /> {/* Spacer to balance layout if needed, or add another button here */}
+                 </>
+              )}
+           </div>
+           
+           <p className="text-xs font-medium text-slate-400 dark:text-slate-500 tracking-wide uppercase">
+               {isConnected ? (isMuted ? 'Micro đã tắt' : 'Đang nghe...') : 'Nhấn để bắt đầu trò chuyện'}
+           </p>
         </div>
       </div>
 
-      {/* --- Bottom Control Bar --- */}
-      <div className="h-24 bg-gray-900 border-t border-gray-800 flex items-center justify-center space-x-6 z-20">
-        <button
-          onClick={() => {
-            playSound(isMuted ? 'unmute' : 'mute');
-            setIsMuted(!isMuted);
-          }}
-          disabled={!isConnected}
-          className={`
-            relative p-4 rounded-full transition-all 
-            ${isMuted ? 'bg-red-500/20 text-red-500' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'} 
-            ${!isConnected && 'opacity-50 cursor-not-allowed'}
-          `}
-        >
-          {isConnected && !isMuted && (
-            <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"></span>
-          )}
-          {isMuted ? <MicOff className="w-6 h-6 relative z-10" /> : <Mic className="w-6 h-6 relative z-10" />}
-        </button>
-
-        <button
-          onClick={isConnected ? cleanup : connect}
-          className={`
-               h-16 px-8 rounded-full flex items-center space-x-3 font-semibold text-lg shadow-lg transition-all transform active:scale-95
-               ${isConnected ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-white hover:bg-gray-100 text-gray-900'}
-            `}
-        >
-          {isConnected ? (
-            <>
-              <div className="relative">
-                <Mic className="w-6 h-6" />
-              </div>
-              <span>End Session</span>
-            </>
-          ) : (
-            <>
-              <Play className="w-6 h-6 fill-current" />
-              <span>Start Voice Chat</span>
-            </>
-          )}
-        </button>
-
-        <button
-          onClick={() => setShowSettings(true)}
-          className="p-4 rounded-full bg-gray-800 text-gray-400 hover:bg-gray-700 transition-all"
-        >
-          <Settings className="w-6 h-6" />
-        </button>
-      </div>
-
-      <style>{`
-        .mask-linear-fade {
-          mask-image: linear-gradient(to bottom, transparent, black 20%);
-          -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%);
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-      `}</style>
-    </div>
+      {/* Widget Mode - Floating Pill */}
+      {mode === 'WIDGET' && (
+         <div 
+            className="fixed bottom-6 right-6 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-full shadow-2xl shadow-indigo-500/20 border border-indigo-100 dark:border-indigo-800 p-2 flex items-center gap-3 cursor-pointer hover:scale-105 transition-all duration-300 group animate-in slide-in-from-bottom-4 fade-in"
+            onClick={() => setMode('FULL')}
+         >
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${isConnected ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+               {isConnected ? (
+                  <div className="relative">
+                     <Mic size={20} />
+                     <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-indigo-600 animate-ping" />
+                  </div>
+               ) : (
+                  <MicOff size={20} />
+               )}
+            </div>
+            <div className="pr-4">
+               <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Locaith Voice</p>
+               <div className="flex items-center gap-1.5">
+                   <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
+                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{isConnected ? 'Đang hoạt động' : 'Đã ngắt kết nối'}</p>
+               </div>
+            </div>
+            <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />
+            <button 
+               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-indigo-600 transition-colors"
+               onClick={(e) => { e.stopPropagation(); setMode('FULL'); }}
+               title="Mở rộng"
+            >
+               <Maximize2 size={18} />
+            </button>
+         </div>
+      )}
+      
+      {/* Settings Modal - Refined */}
+      {showSettings && (
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-indigo-100 dark:border-indigo-900 scale-100 animate-in zoom-in-95 duration-200">
+               <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+                  <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                      <Settings size={20} className="text-indigo-500" />
+                      Cài đặt Voice
+                  </h3>
+                  <button 
+                    onClick={() => setShowSettings(false)}
+                    className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+                  >
+                      <X size={20} />
+                  </button>
+               </div>
+               <div className="p-6 space-y-6">
+                  <div>
+                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider text-[10px]">Giọng nói AI</label>
+                     <div className="grid grid-cols-2 gap-3">
+                        {['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'].map((voice) => (
+                           <button
+                              key={voice}
+                              onClick={() => setSelectedVoice(voice as VoiceName)}
+                              className={`relative px-4 py-3 rounded-xl text-sm font-medium transition-all border ${
+                                 selectedVoice === voice 
+                                 ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 shadow-sm' 
+                                 : 'bg-white dark:bg-gray-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-700'
+                              }`}
+                           >
+                              {voice}
+                              {selectedVoice === voice && (
+                                  <span className="absolute top-1/2 right-3 -translate-y-1/2 flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                                  </span>
+                              )}
+                           </button>
+                        ))}
+                     </div>
+                  </div>
+                  
+                  <div className="pt-2">
+                      <button 
+                        onClick={() => setShowSettings(false)}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all active:scale-[0.98]"
+                      >
+                          Xong
+                      </button>
+                  </div>
+               </div>
+            </div>
+         </div>
+      )}
+    </>
   );
 };
 
 export default VoiceChat;
-

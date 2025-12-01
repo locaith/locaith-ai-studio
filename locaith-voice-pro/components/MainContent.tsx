@@ -89,7 +89,7 @@ const MainContent: React.FC<MainContentProps> = ({
           subtitle: 'AI-powered interior design generation and visualization.',
           icon: Palette,
           placeholder: 'Describe the room you want to design (e.g., Scandinavian living room)...',
-          color: 'text-pink-600'
+          color: 'text-zinc-600'
         };
       case 'COMPOSE':
         return {
@@ -105,12 +105,12 @@ const MainContent: React.FC<MainContentProps> = ({
           subtitle: 'Complex information retrieval and analysis.',
           icon: Globe,
           placeholder: 'What do you want to research today?',
-          color: 'text-purple-600'
+          color: 'text-zinc-600'
         };
       case 'MARKETING':
         return {
           title: 'Marketing Automation',
-          subtitle: 'Generate viral content for Facebook, TikTok, and Zalo.',
+          subtitle: 'Generate viral content for Facebook, TikTok, and other platforms.',
           icon: Megaphone,
           placeholder: 'Describe your marketing campaign...',
           color: 'text-orange-600'

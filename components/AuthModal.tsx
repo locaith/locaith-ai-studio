@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useAuth } from '../src/hooks/useAuth'
 
@@ -11,6 +12,19 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode }) => {
   const [isLogin, setIsLogin] = useState(initialMode !== 'signup')
   const { signInWithGoogle, loading } = useAuth()
+  const navigate = useNavigate()
+  
+  const videos = [
+    '/locaith-tv-animation-2-xuathien.mp4',
+    '/Locaith AI Co.mp4',
+    '/Locaith AI Co-2.mp4',
+    '/Locaith AI Co-3.mp4'
+  ];
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+
+  const handleVideoEnded = () => {
+    setCurrentVideoIndex((prev) => (prev + 1) % videos.length);
+  };
 
   useEffect(() => {
     setIsLogin(initialMode !== 'signup')
@@ -22,6 +36,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     try {
       await signInWithGoogle()
       onClose()
+      navigate('/')
     } catch (error) {
       console.error('Google sign in failed:', error)
     }
@@ -33,7 +48,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 z-10 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+          className="absolute top-6 right-6 z-50 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
         >
           <X size={24} />
         </button>
@@ -109,27 +124,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
         </div>
 
         {/* Right Panel - Brand Display with SVG */}
-        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-gray-900 via-gray-800 to-black p-16 flex-col items-center justify-center relative overflow-hidden">
-          {/* Animated background elements */}
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-20 left-20 w-64 h-64 bg-blue-500 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-20 right-20 w-80 h-80 bg-purple-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          </div>
+        <div className="hidden lg:flex lg:w-1/2 bg-black flex-col items-center justify-center relative overflow-hidden">
+          <video
+            key={videos[currentVideoIndex]}
+            src={videos[currentVideoIndex]}
+            autoPlay
+            muted
+            playsInline
+            onEnded={handleVideoEnded}
+            className="absolute inset-0 w-full h-full object-cover opacity-80"
+          />
+          
+          {/* Overlay Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10" />
 
-          {/* SVG Logo Display */}
-          <div className="relative z-10 w-full max-w-md flex items-center justify-center">
-            <img
-              src="/locaith-logo-script-tv.svg"
-              alt="Locaith Logo"
-              className="w-full h-auto opacity-90"
-            />
-          </div>
+          <div className="relative z-20 flex flex-col items-center justify-center p-16 w-full h-full">
+              {/* SVG Logo Display */}
+              <div className="w-full max-w-md flex items-center justify-center mb-8">
+                <img
+                  src="/locaith-logo-script-tv.svg"
+                  alt="Locaith Logo"
+                  className="w-full h-auto opacity-90 drop-shadow-2xl"
+                  onError={(e) => e.currentTarget.style.display = 'none'}
+                />
+              </div>
 
-          {/* Tagline */}
-          <div className="relative z-10 mt-12 text-center">
-            <p className="text-white/80 text-lg font-light">
-              AI-Powered Studio for Modern Creators
-            </p>
+              {/* Tagline */}
+              <div className="text-center">
+                <p className="text-white/90 text-lg font-light tracking-wide">
+                  AI-Powered Studio for Modern Creators
+                </p>
+              </div>
           </div>
         </div>
       </div>

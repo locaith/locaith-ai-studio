@@ -3,20 +3,66 @@ import { Message, TabOption } from '../types';
 import { Sidebar } from './Sidebar';
 import { ChatInput } from './ChatInput';
 import { PreviewPane } from './PreviewPane';
+import { ProjectThumbnail } from './ProjectThumbnail';
 import { streamWebsiteCode } from '../services/geminiService';
 import { useUserActivity } from '../src/hooks/useUserActivity';
-import { useActivity } from '../src/hooks/useActivity';
 import { supabase } from '../src/lib/supabase';
-import { Logo } from '../App';
 import { vi } from '../src/locales/vi';
-import { downloadWebsiteZip } from '../src/utils/zipExport';
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
+import {
+  Loader2,
+  Rocket,
+  Smartphone,
+  Monitor,
+  Tablet,
+  LayoutTemplate,
+  Type,
+  Image as ImageIcon,
+  Box,
+  Grid,
+  Layers,
+  Palette,
+  Settings,
+  Undo,
+  Redo,
+  Eye,
+  Code,
+  Plus,
+  MessageSquare,
+  Check,
+  Copy,
+  ChevronLeft
+} from "lucide-react";
 
-// Helper to clean code
+// --- Helper Functions ---
+
 const cleanGeneratedCode = (code: string) => {
     return code.replace(/^```html\s*/, '').replace(/^```\s*/, '').replace(/```$/, '');
 };
 
-// Helper to generate name
 const generateProjectName = () => {
     const adj = ['cosmic', 'neon', 'hyper', 'stellar', 'quantum', 'pixel', 'rapid', 'sonic'];
     const noun = ['dashboard', 'shop', 'portfolio', 'stream', 'hub', 'canvas', 'forge', 'labs'];
@@ -26,11 +72,57 @@ const generateProjectName = () => {
     return `${randomAdj}-${randomNoun}-${num}`;
 };
 
+// --- Mock Data for Tools ---
+
+const TOOL_CATEGORIES = [
+    {
+        id: 'structure',
+        label: 'Cấu trúc',
+        icon: <LayoutTemplate className="w-4 h-4" />,
+        tools: [
+            { label: 'Hero Section', prompt: 'Thêm một Hero section ấn tượng vào đầu trang với tiêu đề lớn, mô tả ngắn và nút kêu gọi hành động.' },
+            { label: 'Footer', prompt: 'Thêm phần Footer chuyên nghiệp ở cuối trang với các liên kết, thông tin bản quyền và mạng xã hội.' },
+            { label: 'Grid 2 Cột', prompt: 'Thêm một section chia thành 2 cột cân đối, phù hợp để giới thiệu tính năng hoặc hình ảnh bên cạnh văn bản.' },
+            { label: 'Grid 3 Cột', prompt: 'Thêm một section chia thành 3 cột, thích hợp để hiển thị danh sách dịch vụ hoặc tính năng.' },
+        ]
+    },
+    {
+        id: 'content',
+        label: 'Nội dung',
+        icon: <Type className="w-4 h-4" />,
+        tools: [
+            { label: 'Giới thiệu', prompt: 'Thêm section giới thiệu về chúng tôi với hình ảnh bên trái và văn bản bên phải.' },
+            { label: 'Tính năng', prompt: 'Thêm section danh sách tính năng nổi bật với icon và mô tả ngắn gọn.' },
+            { label: 'Bảng giá', prompt: 'Thêm bảng giá dịch vụ với 3 gói: Cơ bản, Tiêu chuẩn và Cao cấp.' },
+            { label: 'FAQ', prompt: 'Thêm phần Câu hỏi thường gặp (FAQ) dạng accordion.' },
+            { label: 'Testimonials', prompt: 'Thêm phần Đánh giá khách hàng (Testimonials) dạng slider hoặc grid.' },
+        ]
+    },
+    {
+        id: 'media',
+        label: 'Media',
+        icon: <ImageIcon className="w-4 h-4" />,
+        tools: [
+            { label: 'Thư viện ảnh', prompt: 'Thêm một thư viện hình ảnh (Image Gallery) đẹp mắt dạng lưới.' },
+            { label: 'Video Player', prompt: 'Thêm một trình phát video nhúng (Youtube/Vimeo) với khung viền đẹp.' },
+        ]
+    },
+    {
+        id: 'form',
+        label: 'Form',
+        icon: <Box className="w-4 h-4" />,
+        tools: [
+            { label: 'Liên hệ', prompt: 'Thêm form liên hệ chuyên nghiệp gồm các trường: Họ tên, Email, Số điện thoại và Nội dung.' },
+            { label: 'Đăng ký Newsletter', prompt: 'Thêm form đăng ký nhận tin (Newsletter) đơn giản với trường Email.' },
+        ]
+    }
+];
+
 interface WebBuilderFeatureProps {
     initialPrompt?: string;
     trigger?: number;
-    currentProject?: any; // The project object from DB
-    onProjectChange?: (project: any) => void; // Callback when project is created/updated
+    currentProject?: any;
+    onProjectChange?: (project: any) => void;
 }
 
 export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
@@ -39,43 +131,44 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
     currentProject,
     onProjectChange
 }) => {
+    // --- State ---
     const [messages, setMessages] = useState<Message[]>([]);
     const [generatedCode, setGeneratedCode] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.PREVIEW);
-    const [isPreviewModalOpen, setPreviewModalOpen] = useState(false);
     const [hasStarted, setHasStarted] = useState(false);
     const [projectName, setProjectName] = useState('');
     const [projectId, setProjectId] = useState<string | null>(null);
     const [progress, setProgress] = useState<number>(0);
     const [isHoldPlaying, setIsHoldPlaying] = useState<boolean>(false);
+    const [copied, setCopied] = useState(false);
+    
+    // UI State
+    const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+    const [rightPanelOpen, setRightPanelOpen] = useState(true);
+    const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
+    const [isDeploying, setIsDeploying] = useState(false);
+    const [showDeploySuccess, setShowDeploySuccess] = useState(false);
+    const [savedProjects, setSavedProjects] = useState<any[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 12;
 
+    // Refs
     const holdAudioRef = useRef<HTMLAudioElement | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
     const lastTriggerRef = useRef<number | null>(null);
     const ignoreNextTriggerRef = useRef<boolean>(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Integration State
-    const [activePopover, setActivePopover] = useState<'github' | 'supabase' | null>(null);
-    const [githubStatus, setGithubStatus] = useState<'disconnected' | 'connected' | 'syncing'>('disconnected');
-    const [supabaseStatus, setSupabaseStatus] = useState<'disconnected' | 'connected'>('disconnected');
-    const [isDeploying, setIsDeploying] = useState(false);
-    const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
-    const [showDeploySuccess, setShowDeploySuccess] = useState(false);
-    const [copySuccess, setCopySuccess] = useState(false);
-    const [previewError, setPreviewError] = useState<string | null>(null);
+    const lastUserPromptRef = useRef<{ text: string; time: number } | null>(null);
 
     const { trackActivity } = useUserActivity();
 
-    // Listen for preview errors from iframe
+    // --- Effects ---
+
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             if (event.data?.type === 'PREVIEW_ERROR') {
                 const errorMessage = event.data.message || 'Unknown error';
-                setPreviewError(errorMessage);
-
-                // Add error message to chat with fix button
                 const errorMsg: Message = {
                     id: Date.now().toString(),
                     role: 'assistant',
@@ -89,22 +182,18 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                 setMessages(prev => [...prev, errorMsg]);
             }
         };
-
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
     }, []);
 
-    // Load project state if currentProject is provided
     useEffect(() => {
         if (currentProject) {
             setProjectId(currentProject.id);
-            setProjectName(currentProject.project_name);
+            setProjectName(currentProject.project_name || currentProject.name);
             setGeneratedCode(currentProject.html_content || '');
             setMessages(currentProject.messages || []);
             setHasStarted(true);
             setProgress(100);
-
-            // Load deployed URL if exists
             if (currentProject.subdomain) {
                 const url = currentProject.subdomain.startsWith('http')
                     ? currentProject.subdomain
@@ -112,291 +201,44 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
                 setDeployedUrl(url);
                 setShowDeploySuccess(true);
             }
-
             if (currentProject.html_content) {
                 setActiveTab(TabOption.PREVIEW);
             }
+        } else {
+            // Load saved projects
+            fetchSavedProjects();
         }
     }, [currentProject]);
 
-    // Save project state to DB
-    const saveProject = async (code: string, msgs: Message[]) => {
+    const fetchSavedProjects = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                console.warn('Cannot save: user not authenticated');
-                return;
-            }
-
-            // Ensure we have a project name
-            const currentProjectName = projectName || generateProjectName();
-            if (!projectName) {
-                setProjectName(currentProjectName);
-            }
-
-            // Generate unique subdomain
-            const timestamp = Date.now().toString(36);
-            const sanitizedName = currentProjectName
-                .toLowerCase()
-                .replace(/[^a-z0-9-]/g, '-')
-                .replace(/-+/g, '-')
-                .replace(/^-|-$/g, '')
-                .substring(0, 50);
-            const uniqueSubdomain = `${sanitizedName}-${timestamp}`;
-
-            const projectData = {
-                user_id: user.id,
-                project_name: currentProjectName,
-                subdomain: uniqueSubdomain,
-                html_content: code,
-                messages: msgs,
-                updated_at: new Date().toISOString(),
-                last_edited_at: new Date().toISOString()
-            };
-
-            let data, error;
-
-            if (projectId) {
-                // Update existing - don't change subdomain
-                const updateData = { ...projectData };
-                delete (updateData as any).subdomain; // Keep original subdomain
-
-                ({ data, error } = await supabase
-                    .from('websites')
-                    .update(updateData)
-                    .eq('id', projectId)
-                    .select()
-                    .single());
-            } else {
-                // Create new
-                ({ data, error } = await supabase
-                    .from('websites')
-                    .insert([projectData])
-                    .select()
-                    .single());
-            }
-
-            if (error) {
-                console.error('Save error:', error);
-                // Don't throw - just log and continue
-                return;
-            }
-
-            if (data) {
-                setProjectId(data.id);
-                setProjectName(data.project_name);
-                if (onProjectChange) onProjectChange(data);
-                console.log('Project saved:', data.id);
+            const user_id = 'local-dev-user'; // Mock user ID
+            const res = await fetch(`http://localhost:3001/api/websites/${user_id}`);
+            if (res.ok) {
+                const projects = await res.json();
+                setSavedProjects(projects);
             }
         } catch (err) {
-            console.error('Error saving project:', err);
-            // Silently fail - don't disrupt user experience
+            console.error("Failed to load projects", err);
         }
     };
 
-    // Debounced save
-    const triggerSave = useCallback((code: string, msgs: Message[]) => {
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = setTimeout(() => {
-            saveProject(code, msgs);
-        }, 2000); // Save after 2 seconds of inactivity
-    }, [projectId, projectName]);
-
-    const handleStop = useCallback(() => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
-            setIsLoading(false);
-            setMessages(prev => {
-                const newMsgs = prev.map(msg =>
-                    msg.isStreaming ? { ...msg, isStreaming: false, content: msg.content + "\n\n[Stopped by user]" } : msg
-                );
-                triggerSave(generatedCode, newMsgs);
-                return newMsgs;
-            });
-        }
-    }, [generatedCode, triggerSave]);
-
-    const lastUserPromptRef = useRef<{ text: string; time: number } | null>(null);
-
-    const handleSend = useCallback(async (content: string) => {
-        const normalized = String(content || '').trim();
-        const now = Date.now();
-        const last = lastUserPromptRef.current;
-        if (last && last.text === normalized && (now - last.time) < 5000) {
-            return;
-        }
-        lastUserPromptRef.current = { text: normalized, time: now };
-
-        const userMsg: Message = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: normalized
-        };
-
-        const assistantMsgId = (Date.now() + 1).toString();
-        const assistantMsg: Message = {
-            id: assistantMsgId,
-            role: 'assistant',
-            content: '',
-            isStreaming: true
-        };
-
-        setMessages(prev => {
-            const last = prev[prev.length - 1];
-            const shouldAddUser = !(last && last.role === 'user' && last.content.trim() === normalized);
-            const next = [...prev];
-            if (shouldAddUser) next.push(userMsg);
-            next.push(assistantMsg);
-            return next;
-        });
-
-        setIsLoading(true);
-        setProgress(10);
-
-        // Start hold music
-        try {
-            if (!holdAudioRef.current) {
-                const audio = new Audio('/voice-sound/loading.mp3');
-                audio.loop = true;
-                audio.volume = 0.6;
-                holdAudioRef.current = audio;
-            }
-            await holdAudioRef.current.play();
-            setIsHoldPlaying(true);
-        } catch { }
-
-        setActiveTab(TabOption.CODE);
-
-        if (abortControllerRef.current) abortControllerRef.current.abort();
-        const abortController = new AbortController();
-        abortControllerRef.current = abortController;
-
-        try {
-            const stream = streamWebsiteCode(normalized, generatedCode);
-
-            let fullResponse = '';
-            let codePart = '';
-            let logPart = '';
-            let lastBuildCount = 0;
-            let currentGeneratedCode = generatedCode;
-
-            for await (const chunk of stream) {
-                if (abortController.signal.aborted) break;
-                fullResponse += chunk;
-                const codeStartIndex = fullResponse.indexOf('<!DOCTYPE html>');
-
-                if (codeStartIndex !== -1) {
-                    logPart = fullResponse.substring(0, codeStartIndex);
-                    codePart = fullResponse.substring(codeStartIndex);
-                    currentGeneratedCode = cleanGeneratedCode(codePart);
-                    setGeneratedCode(currentGeneratedCode);
-                    setProgress((p) => (p < 90 ? 90 : p));
-
-                    setMessages(prev => prev.map(msg =>
-                        msg.id === assistantMsgId
-                            ? { ...msg, content: logPart }
-                            : msg
-                    ));
-                } else {
-                    logPart = fullResponse;
-                    setMessages(prev => prev.map(msg =>
-                        msg.id === assistantMsgId
-                            ? { ...msg, content: logPart }
-                            : msg
-                    ));
-                    const buildMatches = logPart.match(/\[BUILD\]/g);
-                    const count = buildMatches ? buildMatches.length : 0;
-                    if (count !== lastBuildCount) {
-                        lastBuildCount = count;
-                        const next = Math.min(85, 10 + count * 6);
-                        setProgress(next);
-                    }
-                }
-            }
-
-            setMessages(prev => {
-                const newMsgs = prev.map(msg =>
-                    msg.id === assistantMsgId ? { ...msg, isStreaming: false } : msg
-                );
-
-                // Save state after generation
-                triggerSave(currentGeneratedCode, newMsgs);
-                return newMsgs;
-            });
-
-            if (!abortController.signal.aborted) {
-                setActiveTab(TabOption.PREVIEW);
-            }
-
-            const successMsg: Message = {
-                id: (Date.now() + 2).toString(),
-                role: 'assistant',
-                content: vi.generation.complete,
-                isStreaming: false,
-                action: {
-                    label: vi.actions.downloadZip,
-                    type: 'download',
-                    payload: { code: currentGeneratedCode, projectName }
-                }
-            };
-
-            setMessages(prev => {
-                const newMsgs = [...prev, successMsg];
-                triggerSave(currentGeneratedCode, newMsgs);
-                return newMsgs;
-            });
-
-            setProgress(100);
-
-            // Fade out music
-            try {
-                if (holdAudioRef.current && isHoldPlaying) {
-                    const target = holdAudioRef.current;
-                    const startVol = target.volume;
-                    const steps = 10;
-                    let i = 0;
-                    const interval = setInterval(() => {
-                        i++;
-                        target.volume = Math.max(0, startVol * (1 - i / steps));
-                        if (i >= steps) {
-                            clearInterval(interval);
-                            target.pause();
-                            target.currentTime = 0;
-                            setIsHoldPlaying(false);
-                        }
-                    }, 120);
-                }
-            } catch { }
-
-        } catch (error) {
-            console.error(error);
-            setMessages(prev => prev.map(msg =>
-                msg.id === assistantMsgId
-                    ? { ...msg, content: "I encountered an error while processing your request.", isStreaming: false }
-                    : msg
-            ));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [generatedCode, triggerSave, isHoldPlaying]);
-
-    const handleStart = (prompt: string) => {
-        const newName = generateProjectName();
-        setProjectName(newName);
+    const loadProject = (project: any) => {
+        setProjectId(project.id);
+        setProjectName(project.name);
+        setGeneratedCode(project.html_content || '');
+        setMessages(project.messages || []);
         setHasStarted(true);
-
-        trackActivity({
-            feature_type: 'web-builder',
-            action_type: 'create',
-            action_details: {
-                project_name: newName,
-                prompt: prompt.substring(0, 100),
-                description: `Started new web project: ${newName}`
-            }
-        });
-
-        handleSend(prompt);
+        setProgress(100);
+        if (project.subdomain) {
+             // Check if it's a full URL or just subdomain
+             const url = project.subdomain.startsWith('http') 
+                ? project.subdomain 
+                : `http://localhost:3000/preview/${project.id}`; // Use local preview URL
+             setDeployedUrl(url);
+             setShowDeploySuccess(true);
+        }
+        setActiveTab(TabOption.PREVIEW);
     };
 
     useEffect(() => {
@@ -419,356 +261,496 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
         }
     }, [initialPrompt, trigger, hasStarted, messages.length, projectId]);
 
-    // Handle Deploy
-    const handleDeploy = async () => {
-        setIsDeploying(true);
-        setShowDeploySuccess(false);
+    // --- Actions ---
 
+    const saveProject = async (code: string, msgs: Message[]) => {
         try {
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            if (userError || !user) {
-                // Show error in chat instead of alert
-                const errorMsg: Message = {
-                    id: Date.now().toString(),
-                    role: 'assistant',
-                    content: vi.errors.auth,
-                };
-                setMessages(prev => [...prev, errorMsg]);
-                setIsDeploying(false);
-                return;
-            }
+            // Use local mock user for Docker mode
+            const user = { id: 'local-dev-user' };
 
-            // Save first to ensure latest version
-            await saveProject(generatedCode, messages);
+            const currentProjectName = projectName || generateProjectName();
+            if (!projectName) setProjectName(currentProjectName);
 
-            // Get current session for auth token
-            const { data: { session } } = await supabase.auth.getSession();
-            console.log('Deploy Session Check:', session ? '✅ Valid' : '❌ Missing');
+            const timestamp = Date.now().toString(36);
+            const sanitizedName = currentProjectName.toLowerCase().replace(/[^a-z0-9-]/g, '-').substring(0, 50);
+            const uniqueSubdomain = `${sanitizedName}-${timestamp}`;
 
-            if (!session) {
-                const errorMsg: Message = {
-                    id: Date.now().toString(),
-                    role: 'assistant',
-                    content: vi.messages.sessionExpired,
-                };
-                setMessages(prev => [...prev, errorMsg]);
-                setIsDeploying(false);
-                return;
-            }
+            const projectData = {
+                id: projectId,
+                user_id: user.id,
+                name: currentProjectName,
+                subdomain: projectId ? undefined : uniqueSubdomain,
+                html_content: code,
+                messages: msgs
+            };
 
-            console.log('🚀 Deploying to Vercel...');
-
-            // Deploy to Vercel via Edge Function
-            const { data, error } = await supabase.functions.invoke('deploy-vercel', {
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`
-                },
-                body: {
-                    project_name: projectName || generateProjectName(),
-                    html_content: generatedCode,
-                    website_id: projectId
-                }
+            const response = await fetch('http://localhost:3001/api/websites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(projectData)
             });
 
-            if (error) {
-                console.error('Deployment error:', error);
-                throw new Error(error.message || 'Deployment failed');
+            if (!response.ok) throw new Error('Failed to save to local server');
+            const data = await response.json();
+
+            if (data) {
+                setProjectId(data.id);
+                setProjectName(data.name);
+                if (onProjectChange) onProjectChange(data);
+            }
+        } catch (err) {
+            console.error('Error saving project:', err);
+        }
+    };
+
+    const triggerSave = useCallback((code: string, msgs: Message[]) => {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = setTimeout(() => {
+            saveProject(code, msgs);
+        }, 2000);
+    }, [projectId, projectName]);
+
+    const handleSend = useCallback(async (content: string) => {
+        const normalized = String(content || '').trim();
+        const now = Date.now();
+        const last = lastUserPromptRef.current;
+        if (last && last.text === normalized && (now - last.time) < 5000) return;
+        lastUserPromptRef.current = { text: normalized, time: now };
+
+        const userMsg: Message = { id: Date.now().toString(), role: 'user', content: normalized };
+        const assistantMsgId = (Date.now() + 1).toString();
+        const assistantMsg: Message = { id: assistantMsgId, role: 'assistant', content: '', isStreaming: true };
+
+        setMessages(prev => {
+            const last = prev[prev.length - 1];
+            const shouldAddUser = !(last && last.role === 'user' && last.content.trim() === normalized);
+            const next = [...prev];
+            if (shouldAddUser) next.push(userMsg);
+            next.push(assistantMsg);
+            return next;
+        });
+
+        setIsLoading(true);
+        setProgress(10);
+        // Sound logic removed for brevity but can be re-added
+        
+        setActiveTab(TabOption.PREVIEW); // Always show Preview as per user request
+
+        if (abortControllerRef.current) abortControllerRef.current.abort();
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+
+        try {
+            const stream = streamWebsiteCode(normalized, generatedCode);
+            let fullResponse = '';
+            let codePart = '';
+            let logPart = '';
+            let currentGeneratedCode = generatedCode;
+
+            for await (const chunk of stream) {
+                if (abortController.signal.aborted) break;
+                fullResponse += chunk;
+                const codeStartIndex = fullResponse.indexOf('<!DOCTYPE html>');
+
+                if (codeStartIndex !== -1) {
+                    logPart = fullResponse.substring(0, codeStartIndex);
+                    codePart = fullResponse.substring(codeStartIndex);
+                    currentGeneratedCode = cleanGeneratedCode(codePart);
+                    setGeneratedCode(currentGeneratedCode);
+                    setProgress((p) => (p < 90 ? 90 : p));
+                    setMessages(prev => prev.map(msg => msg.id === assistantMsgId ? { ...msg, content: logPart } : msg));
+                } else {
+                    logPart = fullResponse;
+                    setMessages(prev => prev.map(msg => msg.id === assistantMsgId ? { ...msg, content: logPart } : msg));
+                    const buildMatches = logPart.match(/\[BUILD\]/g);
+                    const count = buildMatches ? buildMatches.length : 0;
+                    setProgress(Math.min(85, 10 + count * 6));
+                }
             }
 
-            if (!data?.success) {
-                throw new Error(data?.error || 'Deployment failed');
+            setMessages(prev => {
+                const newMsgs = prev.map(msg => msg.id === assistantMsgId ? { ...msg, isStreaming: false } : msg);
+                triggerSave(currentGeneratedCode, newMsgs);
+                return newMsgs;
+            });
+
+            if (!abortController.signal.aborted) {
+                setActiveTab(TabOption.PREVIEW);
             }
 
-            console.log('✅ Deployment successful!', data);
+            setMessages(prev => [...prev, {
+                id: (Date.now() + 2).toString(),
+                role: 'assistant',
+                content: vi.generation.complete,
+                isStreaming: false
+            }]);
 
-            // Show success banner instead of alert
-            setDeployedUrl(data.url);
+            setProgress(100);
+        } catch (error) {
+            console.error(error);
+            setMessages(prev => prev.map(msg => msg.id === assistantMsgId ? { ...msg, content: "Error processing request.", isStreaming: false } : msg));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [generatedCode, triggerSave]);
+
+    const handleCopy = async () => {
+        await navigator.clipboard.writeText(generatedCode);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleStart = (prompt: string) => {
+        const newName = generateProjectName();
+        setProjectName(newName);
+        setHasStarted(true);
+        trackActivity({
+            feature_type: 'web-builder',
+            action_type: 'create',
+            action_details: { project_name: newName, prompt: prompt.substring(0, 100) }
+        });
+        handleSend(prompt);
+    };
+
+    const handleDeploy = async () => {
+        setIsDeploying(true);
+        try {
+            // Save first
+            await saveProject(generatedCode, messages);
+            
+            // Mock deployment for local docker mode
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            const mockUrl = `http://localhost:3000/preview/${projectId || 'demo'}`;
+            setDeployedUrl(mockUrl);
             setShowDeploySuccess(true);
-
-            // Add success message to chat
-            const successMsg: Message = {
-                id: Date.now().toString(),
-                role: 'assistant',
-                content: vi.deployment.success,
-            };
-            setMessages(prev => [...prev, successMsg]);
-
+            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: `${vi.deployment.success} (Local Mode)` }]);
         } catch (err: any) {
-            console.error('Deploy failed:', err);
-
-            // Show error in chat
-            const errorMsg: Message = {
-                id: Date.now().toString(),
-                role: 'assistant',
-                content: vi.errors.generic.replace('{error}', err.message),
-            };
-            setMessages(prev => [...prev, errorMsg]);
+            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: `Deploy failed: ${err.message}` }]);
         } finally {
             setIsDeploying(false);
         }
     };
 
+    // --- Render ---
+
     if (!hasStarted) {
         return (
-            <div className="h-full w-full flex flex-col items-center justify-center relative overflow-hidden font-sans text-gray-900 selection:bg-brand-500/30">
-                <div className="z-10 w-full max-w-3xl px-6 flex flex-col items-center text-center">
-                    <div className="mb-8 animate-fade-in-up flex flex-col items-center">
-                        <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-gray-900 mb-4 drop-shadow-sm">
-                            Locaith <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-accent-500">Builder</span>
+            <div className="h-full w-full flex flex-col items-center relative overflow-y-auto font-sans neu-bg text-foreground">
+                <div className="w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center min-h-full">
+                    
+                    {/* Header Section */}
+                    <div className="flex flex-col items-center text-center mb-10 animate-fade-in-up shrink-0">
+                        <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4 text-foreground">
+                            Locaith <span className="text-primary">Builder</span>
                         </h1>
-                        <p className="text-base text-gray-600 max-w-lg mx-auto leading-relaxed backdrop-blur-sm bg-white/30 p-2 rounded-lg">
-                            {vi.ui.subtitle}
+                        <p className="text-muted-foreground max-w-lg mx-auto text-base md:text-lg leading-relaxed">
+                            Xây dựng website chuyên nghiệp với sự hỗ trợ của AI. Chỉ cần mô tả ý tưởng của bạn.
                         </p>
                     </div>
 
-                    <ChatInput
-                        onSend={handleStart}
-                        onStop={() => { }}
-                        isLoading={false}
-                        placeholder={vi.ui.placeholder}
-                        isLandingPage={true}
-                    />
+                    {/* Input Section */}
+                    <div className="w-full max-w-3xl shrink-0 mb-10 z-20">
+                         <ChatInput
+                            onSend={handleStart}
+                            isLoading={false}
+                            placeholder="Mô tả website bạn muốn xây dựng..."
+                            isLandingPage={true}
+                        />
+                        
+                        {/* Suggestion Chips */}
+                        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                             {['Portfolio cá nhân', 'Landing Page sản phẩm', 'Blog tin tức', 'Cửa hàng trực tuyến'].map((suggestion) => (
+                                 <Button 
+                                    key={suggestion} 
+                                    variant="ghost"
+                                    className="h-auto py-3 px-4 text-xs md:text-sm whitespace-normal rounded-xl neu-flat hover:neu-pressed text-muted-foreground hover:text-primary transition-all duration-300"
+                                    onClick={() => handleStart(`Tạo một ${suggestion} chuyên nghiệp và hiện đại.`)}
+                                 >
+                                    {suggestion}
+                                 </Button>
+                             ))}
+                        </div>
+                    </div>
+
+                    {/* Recent Projects Section */}
+                    {savedProjects.length > 0 && (
+                        <div className="w-full max-w-5xl flex flex-col animate-fade-in mt-4">
+                            <div className="flex items-center justify-between mb-4 shrink-0 px-1">
+                                <h2 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+                                    <LayoutTemplate className="w-5 h-5 text-primary" />
+                                    Dự án gần đây
+                                </h2>
+                                <span className="text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-full">
+                                    {savedProjects.length} dự án
+                                </span>
+                            </div>
+                            
+                            <div className="w-full rounded-2xl neu-pressed p-6 border border-border/50">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {savedProjects
+                                        .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                                        .map((project) => (
+                                        <div 
+                                            key={project.id}
+                                            onClick={() => loadProject(project)}
+                                            className="group relative neu-flat rounded-xl overflow-hidden cursor-pointer hover:scale-[1.02] transition-all duration-300 border border-transparent hover:border-primary/30"
+                                        >
+                                            <div className="aspect-video bg-muted/30 relative flex items-center justify-center overflow-hidden group-hover:opacity-90 transition-opacity">
+                                                {project.html_content ? (
+                                                    <ProjectThumbnail htmlContent={project.html_content} />
+                                                ) : (
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5" />
+                                                )}
+                                                
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-[2px]">
+                                                    <Button size="sm" className="bg-primary text-primary-foreground shadow-lg rounded-full">
+                                                        Mở dự án
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="p-4">
+                                                <div className="flex items-start justify-between gap-2 mb-2">
+                                                    <h3 className="font-semibold text-foreground truncate flex-1" title={project.name || project.project_name}>
+                                                        {project.name || project.project_name}
+                                                    </h3>
+                                                    <span className={`w-2 h-2 rounded-full shrink-0 mt-2 ${project.subdomain ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-yellow-500'}`} />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground line-clamp-2 h-8 mb-3">
+                                                    {project.description || "Dự án web được tạo bởi AI Builder"}
+                                                </p>
+                                                <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium">
+                                                    <span className="flex items-center gap-1">
+                                                        <LayoutTemplate className="w-3 h-3" /> Website
+                                                    </span>
+                                                    <span>{new Date(project.created_at || Date.now()).toLocaleDateString('vi-VN')}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {Math.ceil(savedProjects.length / ITEMS_PER_PAGE) > 1 && (
+                                    <div className="flex justify-center gap-2 mt-6">
+                                        {Array.from({ length: Math.ceil(savedProjects.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page)}
+                                                className={cn(
+                                                    "w-8 h-8 rounded-full text-xs font-medium transition-all",
+                                                    currentPage === page
+                                                        ? "bg-primary text-primary-foreground shadow-md scale-110"
+                                                        : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                                )}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex h-full bg-transparent text-gray-900 overflow-hidden font-sans selection:bg-brand-500/30 animate-fade-in-up relative">
-
-            {/* Mobile Action Buttons */}
-            {generatedCode && (
-                <div className="md:hidden fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-                    <button
-                        onClick={() => setPreviewModalOpen(true)}
-                        className="px-4 py-2 bg-white/95 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 shadow-lg backdrop-blur-sm"
+        <div className="flex flex-col h-full neu-bg overflow-hidden animate-fade-in text-gray-700">
+            {/* Top Bar */}
+            <div className="h-14 flex items-center justify-between px-4 neu-bg z-50 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="neu-btn flex items-center gap-1 px-3 h-9 text-gray-600 hover:text-[#3b82f6] mr-1"
+                        onClick={() => setHasStarted(false)}
                     >
-                        {vi.ui.preview}
-                    </button>
-                    <button
-                        onClick={handleDeploy}
-                        className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium shadow-lg"
+                        <ChevronLeft className="w-4 h-4" />
+                        <span className="hidden sm:inline">Trở lại</span>
+                    </Button>
+                    <div className="font-bold text-lg flex items-center gap-2">
+                        <Rocket className="w-5 h-5 neu-text-primary" />
+                        <span className="hidden md:inline text-gray-700">Locaith Builder</span>
+                    </div>
+                    <Separator orientation="vertical" className="h-6 bg-gray-300 hidden md:block" />
+                    <div className="hidden md:flex items-center gap-2 p-1">
+                        <Button 
+                            className={cn("h-8 w-8 rounded-full", previewDevice === 'desktop' ? 'neu-pressed text-[#3b82f6]' : 'neu-btn')}
+                            size="icon" 
+                            onClick={() => setPreviewDevice('desktop')}
+                        >
+                            <Monitor className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                            className={cn("h-8 w-8 rounded-full", previewDevice === 'tablet' ? 'neu-pressed text-[#3b82f6]' : 'neu-btn')}
+                            size="icon" 
+                            onClick={() => setPreviewDevice('tablet')}
+                        >
+                            <Tablet className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                            className={cn("h-8 w-8 rounded-full", previewDevice === 'mobile' ? 'neu-pressed text-[#3b82f6]' : 'neu-btn')}
+                            size="icon" 
+                            onClick={() => setPreviewDevice('mobile')}
+                        >
+                            <Smartphone className="w-4 h-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabOption)} className="hidden md:block">
+                        <TabsList className="h-9 bg-transparent p-0 gap-2">
+                            <TabsTrigger value={TabOption.PREVIEW} className="h-9 px-4 rounded-full data-[state=active]:neu-pressed data-[state=active]:text-[#3b82f6] data-[state=inactive]:neu-btn text-xs">Preview</TabsTrigger>
+                            <TabsTrigger value={TabOption.CODE} className="h-9 px-4 rounded-full data-[state=active]:neu-pressed data-[state=active]:text-[#3b82f6] data-[state=inactive]:neu-btn text-xs">Code</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    <Button 
+                        onClick={() => setRightPanelOpen(!rightPanelOpen)} 
+                        className={cn("h-9 px-3 md:hidden flex", rightPanelOpen ? "neu-pressed text-[#3b82f6]" : "neu-btn")}
+                        size="icon"
                     >
-                        {vi.ui.publish}
-                    </button>
-                </div>
-            )}
-
-            {/* Progress Overlay - Only show when actively loading */}
-            {isLoading && (
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full px-4 py-2 shadow-lg flex items-center gap-3">
-                    <div className="w-4 h-4 rounded-full border-2 border-brand-600 border-t-transparent animate-spin"></div>
-                    <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-brand-600" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}></div>
-                    </div>
-                    <span className="text-xs text-gray-700">{vi.ui.generating}</span>
-                </div>
-            )}
-
-            {/* Deployment Modal */}
-            {isDeploying && (
-                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white border border-gray-200 rounded-xl w-full max-w-md p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-5 h-5 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
-                            <h3 className="text-lg font-mono text-gray-900">{vi.ui.deploying}</h3>
-                        </div>
-                        <p className="text-sm text-gray-500">{vi.deployment.processing}</p>
-                    </div>
-                </div>
-            )}
-
-            {/* Deployment Success */}
-            {/* Deployment Success Banner */}
-            {showDeploySuccess && deployedUrl && (
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg px-4">
-                    <div className="bg-white border-2 border-green-500 rounded-lg shadow-xl p-4 relative animate-fade-in">
-                        {/* Close button */}
-                        <button
-                            onClick={() => setShowDeploySuccess(false)}
-                            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-
-                        {/* Header */}
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                            <h3 className="font-bold text-lg text-gray-900">{vi.deployment.success}</h3>
-                        </div>
-
-                        {/* URL Display */}
-                        <label className="text-sm text-gray-600 mb-1 block">{vi.deployment.urlLabel}</label>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
-                            <div className="flex items-center justify-between gap-2">
-                                <a
-                                    href={deployedUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-brand-600 hover:text-brand-700 hover:underline font-mono text-sm truncate flex-1"
-                                >
-                                    {deployedUrl}
-                                </a>
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(deployedUrl);
-                                        setCopySuccess(true);
-                                        setTimeout(() => setCopySuccess(false), 2000);
-                                    }}
-                                    className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs rounded font-medium transition-colors flex-shrink-0"
-                                >
-                                    {copySuccess ? vi.deployment.copied : vi.deployment.copyButton}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Action Button */}
-                        <a
-                            href={deployedUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block w-full py-2 bg-green-600 hover:bg-green-700 text-white text-center rounded-lg font-medium transition-colors"
-                        >
-                            {vi.deployment.openButton}
-                        </a>
-                    </div>
-                </div>
-            )}
-
-            {/* Sidebar */}
-            <div className="w-full md:w-[400px] lg:w-[450px] flex flex-col border-r border-gray-200 bg-white/90 backdrop-blur-sm z-10 shadow-xl flex-shrink-0 transition-all relative">
-                <div className="p-4 border-b border-gray-200 flex items-center gap-3 select-none">
-                    <div className="w-8 h-8 text-brand-500 cursor-pointer" onClick={() => { setHasStarted(false); setProjectId(null); setMessages([]); }}>
-                        <Logo />
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-sm tracking-wide text-gray-900">{projectName || vi.ui.newProject}</h1>
-                        <div className="flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${projectId ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-                            <span className="text-[10px] text-gray-500 font-mono">{projectId ? vi.ui.saved : vi.ui.unsaved}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-hidden relative bg-gray-50/50">
-                    <Sidebar messages={messages} onAction={async (action) => {
-                        if (action.type === 'download') {
-                            // Handle ZIP download
-                            try {
-                                await downloadWebsiteZip(
-                                    action.payload.code || generatedCode,
-                                    action.payload.projectName || projectName || 'website'
-                                );
-                            } catch (error) {
-                                console.error('Download failed:', error);
-                            }
-                        } else if (action.type === 'fix') {
-                            // Handle auto-fix for errors
-                            const fixPrompt = `Có lỗi xảy ra trong website. Vui lòng sửa lỗi sau:\n\n${action.payload.error}\n\nHãy tạo lại code hoàn chỉnh đã được sửa lỗi.`;
-                            handleSend(fixPrompt);
-                        }
-                    }} />
-                </div>
-
-                <div className="p-4 bg-white/50 border-t border-gray-200">
-                    <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isLoading} />
+                        <MessageSquare className="w-4 h-4" />
+                    </Button>
+                    <Button onClick={() => setRightPanelOpen(!rightPanelOpen)} className={cn("h-9 px-3 hidden md:flex", rightPanelOpen ? "neu-pressed text-[#3b82f6]" : "neu-btn")}>
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        AI Assistant
+                    </Button>
+                    <Button onClick={handleDeploy} disabled={isDeploying} size="sm" className="neu-btn-primary h-9">
+                        {isDeploying ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
+                        Xuất bản
+                    </Button>
                 </div>
             </div>
 
-            {/* Preview Area */}
-            <div className="hidden md:flex flex-1 flex-col h-full overflow-hidden bg-gray-100/50 relative backdrop-blur-sm">
-                <div className="h-14 border-b border-gray-200 bg-white/80 backdrop-blur flex items-center justify-between px-4 z-20 transition-colors">
-                    <div className="flex items-center gap-2">
-                        <div className="bg-gray-100/80 px-3 py-1 rounded-md border border-gray-200 text-sm text-gray-600 font-mono">
-                            {projectName}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 relative">
-                        {/* New Project Button */}
-                        <button
-                            onClick={() => {
-                                setHasStarted(false);
-                                setProjectId(null);
-                                setMessages([]);
-                                setProjectName('');
-                                setGeneratedCode('');
-                            }}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm"
-                            title={vi.ui.newProject}
+            {/* Mobile Tabs Sub-header */}
+            <div className="md:hidden px-4 pb-2 neu-bg z-40 flex items-center justify-center gap-3 transition-all">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabOption)} className="flex-1 max-w-xs transition-all">
+                    <TabsList className="w-full h-9 bg-transparent p-0 grid grid-cols-2 gap-4">
+                        <TabsTrigger 
+                            value={TabOption.PREVIEW} 
+                            className="h-9 rounded-full data-[state=active]:neu-pressed data-[state=active]:text-[#3b82f6] data-[state=inactive]:neu-btn text-xs flex items-center justify-center gap-2 transition-all"
                         >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span className="hidden lg:inline">{vi.ui.newProject}</span>
-                        </button>
-
-                        {/* Download ZIP Button */}
-                        <button
-                            onClick={async () => {
-                                try {
-                                    await downloadWebsiteZip(generatedCode, projectName || 'website');
-                                } catch (error) {
-                                    console.error('Download failed:', error);
-                                }
-                            }}
-                            disabled={!generatedCode}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${generatedCode
-                                ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
-                                : 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                                }`}
-                            title={vi.actions.downloadZip}
+                            <Eye className="w-3 h-3" /> Xem trước
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value={TabOption.CODE} 
+                            className="h-9 rounded-full data-[state=active]:neu-pressed data-[state=active]:text-[#3b82f6] data-[state=inactive]:neu-btn text-xs flex items-center justify-center gap-2 transition-all"
                         >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                            </svg>
-                            <span className="hidden lg:inline">{vi.actions.downloadZip}</span>
-                        </button>
+                            <Code className="w-3 h-3" /> Code
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
 
-                        {/* Publish Button */}
-                        <button
-                            onClick={handleDeploy}
-                            className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-brand-900/20"
-                        >
-                            {vi.ui.publish}
-                        </button>
-                    </div>
-                </div>
-
-                <div className="relative flex-1">
-                    <div className="p-2 md:p-4 h-full z-10 relative">
-                        <PreviewPane
-                            code={generatedCode}
-                            activeTab={activeTab}
-                            onTabChange={setActiveTab}
-                        />
-                    </div>
-                </div>
+                {activeTab === TabOption.CODE && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleCopy}
+                        className="h-9 w-9 neu-btn text-gray-500 flex-shrink-0 animate-fade-in"
+                    >
+                        {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                )}
             </div>
 
-            {/* Mobile Preview Modal */}
-            {isPreviewModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fade-in-up">
-                    <div className="relative w-full h-full md:h-[90vh] md:w-[90vw] md:max-w-5xl bg-white md:rounded-2xl overflow-hidden">
-                        <button
-                            onClick={() => setPreviewModalOpen(false)}
-                            className="absolute top-4 right-4 z-20 p-2 bg-white/80 border border-gray-200 rounded-full text-gray-700 hover:bg-white md:shadow"
+            <div className="flex-1 flex overflow-hidden relative pb-0">
+                {/* Main Canvas Area */}
+                <div className="flex-1 bg-[#e0e5ec] relative flex flex-col overflow-hidden shadow-inner">
+                    {isLoading && (
+                        <div className="absolute top-0 left-0 w-full h-1 z-50">
+                            <Progress value={progress} className="h-full rounded-none bg-gray-200" indicatorClassName="bg-[#3b82f6]" />
+                        </div>
+                    )}
+                    
+                    <div className="flex-1 flex items-center justify-center p-2 md:p-3 overflow-auto">
+                        <div 
+                            className={cn(
+                                "transition-all duration-300 neu-flat overflow-hidden shadow-xl bg-gray-900",
+                                previewDevice === 'mobile' ? 'w-full h-full md:w-[375px] md:h-[667px] border-[8px] border-gray-800 rounded-[2.5rem]' : 
+                                previewDevice === 'tablet' ? 'w-[768px] h-[1024px] border-[12px] border-gray-800 rounded-[2rem]' : 
+                                'w-[99%] h-[99%] max-w-full rounded-none border-0'
+                            )}
                         >
-                            {vi.ui.close}
-                        </button>
-                        <div className="w-full h-full pt-12 md:pt-0">
-                            <PreviewPane
-                                code={generatedCode}
-                                activeTab={activeTab}
-                                onTabChange={setActiveTab}
+                            <PreviewPane 
+                                code={generatedCode} 
+                                activeTab={activeTab} 
+                                showHeader={previewDevice === 'desktop'}
+                                onTabChange={(tab) => {
+                                    // Prevent switching tabs while building
+                                    if (isLoading) return;
+                                    setActiveTab(tab);
+                                }} 
                             />
                         </div>
+                    </div>
+                </div>
+
+                {/* Right Sidebar - AI Chat */}
+                {rightPanelOpen && (
+                    <div className={cn(
+                        "neu-bg flex flex-col shadow-[-5px_0_15px_rgba(0,0,0,0.05)] z-40 transition-all",
+                        "fixed inset-0 top-14 bottom-16 md:static md:w-80 md:h-full md:inset-auto"
+                    )}>
+                        <div className="p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_5px_#22c55e]" />
+                                <span className="font-semibold text-sm text-gray-700">Trợ lý AI</span>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 neu-btn md:hidden" onClick={() => setRightPanelOpen(false)}>
+                                <Undo className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <div className="flex-1 overflow-hidden flex flex-col">
+                            <Sidebar messages={messages} />
+                        </div>
+                        <div className="p-4 neu-bg">
+                            <ChatInput 
+                                onSend={handleSend} 
+                                isLoading={isLoading} 
+                                placeholder="Yêu cầu chỉnh sửa..."
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Mobile Bottom Navigation Removed - Replaced by Top Controls */}
+            {/* <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 neu-bg z-50 flex items-center justify-around px-2 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">...</div> */}
+
+            {/* Deploy Dialog */}
+            <Dialog open={isDeploying} onOpenChange={() => {}}>
+                <DialogContent className="sm:max-w-md neu-flat border-none">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-3 text-gray-700">
+                            <Loader2 className="w-5 h-5 text-[#3b82f6] animate-spin" />
+                            Đang xuất bản...
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-500">
+                            Vui lòng đợi trong khi chúng tôi đưa website của bạn lên internet.
+                        </DialogDescription>
+                    </DialogHeader>
+                </DialogContent>
+            </Dialog>
+
+             {/* Deployment Success Banner */}
+             {showDeploySuccess && deployedUrl && (
+                <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg px-4">
+                    <div className="neu-flat p-4 relative animate-fade-in flex items-center gap-4 border border-[#3b82f6]/20">
+                         <div className="bg-[#3b82f6]/10 p-2 rounded-full">
+                            <Rocket className="w-5 h-5 text-[#3b82f6]" />
+                         </div>
+                         <div className="flex-1">
+                             <h4 className="font-bold text-sm">Xuất bản thành công!</h4>
+                             <a href={deployedUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate block max-w-[250px]">
+                                {deployedUrl}
+                             </a>
+                         </div>
+                         <Button variant="ghost" size="icon" onClick={() => setShowDeploySuccess(false)} className="h-6 w-6">
+                             <Undo className="w-4 h-4" />
+                         </Button>
                     </div>
                 </div>
             )}

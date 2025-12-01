@@ -409,6 +409,36 @@ const WebsiteBuilder: React.FC<WebsiteBuilderProps> = ({ initialPrompt, onClose 
       <!DOCTYPE html>
       <html lang="en">
       <head>
+        <script>
+          // Suppress production warnings for this preview environment
+          (function() {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+              const msg = args[0];
+              if (typeof msg === 'string' && (
+                msg.includes('cdn.tailwindcss.com') || 
+                msg.includes('babel-standalone') ||
+                msg.includes('in-browser Babel transformer') ||
+                msg.includes('dampingFactor')
+              )) {
+                return;
+              }
+              originalWarn.apply(console, args);
+            };
+            
+            // Also suppress errors that might be related
+            const originalError = console.error;
+            console.error = function(...args) {
+                const msg = args[0];
+                if (typeof msg === 'string' && (
+                    msg.includes('dampingFactor')
+                )) {
+                    return;
+                }
+                originalError.apply(console, args);
+            };
+          })();
+        </script>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <script src="https://cdn.tailwindcss.com"></script>
@@ -628,7 +658,7 @@ const WebsiteBuilder: React.FC<WebsiteBuilderProps> = ({ initialPrompt, onClose 
          
          <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4 bg-white">
             <div className="flex items-center space-x-3 group">
-               <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600">
+               <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-600">
                   <Box className="w-5 h-5" />
                </div>
                {isEditingName ? (

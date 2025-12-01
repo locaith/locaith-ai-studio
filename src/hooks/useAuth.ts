@@ -20,185 +20,72 @@ export interface AuthError {
 
 export const useAuth = () => {
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<AuthError | null>(null)
 
   useEffect(() => {
     let mounted = true
 
-    // 1. Optimistically restore user from localStorage
-    const restoreUserFromStorage = () => {
+    // 1. Get initial session
+    const initSession = async () => {
       try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key && key.startsWith('sb-') && key.includes('-auth-token')) {
-            const data = localStorage.getItem(key)
-            if (data) {
-              const parsed = JSON.parse(data)
-              if (parsed?.user) {
-                console.log('⚡ Optimistically restoring user from localStorage')
-                const u = parsed.user
-                setUser({
-                  id: u.id,
-                  email: u.email || 'unknown@user.com',
-                  full_name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'User',
-                  avatar_url: u.user_metadata?.avatar_url || u.user_metadata?.picture,
-                  user_metadata: u.user_metadata || {}
-                })
-                return true
-              }
+        const { data: { session } } = await supabase.auth.getSession()
+        if (mounted) {
+            if (session) {
+                setSession(session)
+                await updateUserFromSession(session)
+            } else {
+                setLoading(false)
             }
-          }
         }
       } catch (err) {
-        console.error('Failed to restore from localStorage:', err)
-      }
-      return false
-    }
-
-    // 2. Verify session with Supabase
-    const checkSession = async (attempt = 1) => {
-      const MAX_RETRIES = 3
-
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-        if (sessionError) {
-          console.error(`Session check error (attempt ${attempt}/${MAX_RETRIES}):`, sessionError)
-
-          if (attempt < MAX_RETRIES && mounted) {
-            setTimeout(() => {
-              if (mounted) checkSession(attempt + 1)
-            }, 1000 * attempt) // Exponential backoff
-            return
-          }
-
-          // Clear bad session after retries
-          console.warn('🧹 Clearing invalid session after retries')
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i)
-            if (k && k.startsWith('sb-') && k.includes('-auth-token')) {
-              localStorage.removeItem(k)
-            }
-          }
-
-          if (mounted) {
-            setUser(null)
-            setError({ message: 'Session error. Please sign in again.', code: sessionError.message })
-          }
-          return
-        }
-
-        if (session?.user && mounted) {
-          await updateUserFromSession(session)
-        } else if (mounted && !session) {
-          setUser(null)
-        }
-      } catch (err: any) {
-        console.error('Critical auth error:', err)
-        if (mounted) {
-          setUser(null)
-          setError({ message: err.message || 'Authentication failed' })
-        }
-      } finally {
+        console.error('Error getting session:', err)
         if (mounted) setLoading(false)
       }
     }
 
-    // 3. Update user state from session
-    const updateUserFromSession = async (session: Session) => {
-      const u = session.user
-      const userEmail = u.email || 'unknown@user.com'
-      const userName = u.user_metadata?.full_name || u.user_metadata?.name || userEmail.split('@')[0] || 'User'
+    initSession()
 
-      const authUser: AuthUser = {
-        id: u.id,
-        email: userEmail,
-        full_name: userName,
-        avatar_url: u.user_metadata?.avatar_url || u.user_metadata?.picture,
-        user_metadata: u.user_metadata || {}
-      }
-
-      setUser(authUser)
-
-      // Fetch profile from database for additional data
-      try {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', u.id)
-          .maybeSingle()
-
-        if (profile && mounted) {
-          setUser(prev => prev ? {
-            ...prev,
-            full_name: profile.full_name || prev.full_name,
-            avatar_url: profile.avatar_url || prev.avatar_url,
-            onboarding_completed: profile.onboarding_completed
-          } : null)
-        } else if (!profile && !profileError) {
-          // Profile doesn't exist, trigger should have created it
-          console.warn('Profile not found for user, may need to wait for trigger')
-        }
-      } catch (profileError) {
-        console.warn('Profile fetch failed (non-critical):', profileError)
-      }
-    }
-
-    // 4. Initialize
-    const hasRestoredFromStorage = restoreUserFromStorage()
-    if (hasRestoredFromStorage) {
-      setLoading(false) // Show UI immediately
-    }
-    checkSession() // Then verify with server
-
-    // 5. Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: Session | null) => {
       console.log('🔐 Auth Event:', event, session?.user?.email || 'no user')
 
-      if (event === 'SIGNED_OUT') {
-        console.log('User signed out')
+      if (event === 'SIGNED_OUT' || !session) {
         if (mounted) {
           setUser(null)
-          setError(null)
+          setSession(null)
           setLoading(false)
         }
         return
       }
 
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully')
-      }
-
-      if (session?.user && mounted && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+      if (mounted && session) {
+        setSession(session)
         await updateUserFromSession(session)
-      } else if (!session && mounted) {
-        setUser(null)
       }
-
-      if (mounted) setLoading(false)
     })
-
-    // 6. Handle page visibility (for tab switching)
-    const onVisibility = async () => {
-      if (!mounted || document.hidden) return
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user && mounted) {
-          await updateUserFromSession(session)
-        }
-      } catch (err) {
-        console.error('Visibility check error:', err)
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       mounted = false
       subscription?.unsubscribe()
-      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
+
+  // Helper to map Supabase user to AuthUser
+  const updateUserFromSession = async (session: Session) => {
+    const u = session.user
+    if (!u) return
+
+    setUser({
+      id: u.id,
+      email: u.email || '',
+      full_name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'User',
+      avatar_url: u.user_metadata?.avatar_url || u.user_metadata?.picture,
+      user_metadata: u.user_metadata || {}
+    })
+    setLoading(false)
+  }
 
   // Sign in with Google
   const signInWithGoogle = async () => {
@@ -235,15 +122,10 @@ export const useAuth = () => {
       setLoading(true)
       const { error } = await supabase.auth.signOut()
       if (error) throw error
-      setUser(null)
-      setError(null)
     } catch (err: any) {
       console.error('Error signing out:', err)
-      setUser(null) // Force clear even on error
       setError({ message: err.message || 'Failed to sign out' })
       throw err
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -253,7 +135,8 @@ export const useAuth = () => {
       setLoading(true)
       const { data: { session }, error } = await supabase.auth.refreshSession()
       if (error) throw error
-      if (session?.user) {
+      if (session) {
+        setSession(session)
         await updateUserFromSession(session)
       }
     } catch (err: any) {
@@ -265,11 +148,11 @@ export const useAuth = () => {
     }
   }
 
-  // Clear error
   const clearError = () => setError(null)
 
   return {
     user,
+    session,
     loading,
     error,
     signInWithGoogle,
@@ -278,10 +161,4 @@ export const useAuth = () => {
     clearError,
     isAuthenticated: !!user
   }
-}
-
-// Helper function to update user state
-async function updateUserFromSession(session: Session) {
-  // This is defined outside the hook to avoid closure issues
-  // Implementation is in the hook above
 }

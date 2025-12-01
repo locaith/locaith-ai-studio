@@ -1,0 +1,582 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 15%;
+
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 15%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.5rem;
+    
+    --chat-bg: 0 0% 100%;
+    --chat-sidebar-bg: 0 0% 98%;
+    --chat-message-user: 217 91% 60%;
+    --chat-message-ai: 0 0% 96%;
+    --chat-input-bg: 0 0% 100%;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Neumorphism Variables (Light) */
+    --neu-bg: #ebecf0;
+    --neu-shadow-dark: #b8b9be;
+    --neu-shadow-light: #ffffff;
+    --neu-text: #5E6472;
+  }
+
+  .dark {
+    --background: 240 50% 4%; /* Deep dark blue/black #05050f */
+    --foreground: 210 40% 98%; /* Bright white/blue #f0f4ff */
+
+    --card: 240 40% 6%; /* Slightly lighter dark #0a0a16 */
+    --card-foreground: 210 40% 98%;
+
+    --popover: 240 40% 6%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 100% 60%; /* Locaith Blue Neon */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 240 5% 15%; /* Dark Gray/Black */
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 240 30% 12%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 100% 60%; /* Locaith Blue Neon */
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 100% 60%; /* Neon Red */
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 240 30% 15%;
+    --input: 240 30% 15%;
+    --ring: 217 100% 60%;
+    
+    --chat-bg: 240 50% 4%;
+    --chat-sidebar-bg: 240 45% 5%;
+    --chat-message-user: 217 100% 60%;
+    --chat-message-ai: 240 30% 12%;
+    --chat-input-bg: 240 30% 10%;
+
+    --sidebar-background: 240 50% 4%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 100% 60%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 240 30% 12%;
+    --sidebar-accent-foreground: 217 100% 60%;
+    --sidebar-border: 240 30% 12%;
+    --sidebar-ring: 217 100% 60%;
+
+    /* Neumorphism Variables (Dark) */
+    --neu-bg: #151520; /* Slightly lighter than pure black background for contrast */
+    --neu-shadow-dark: #0a0a10;
+    --neu-shadow-light: #202030;
+    --neu-text: #e0e0e0;
+  }
+
+  /* Default Theme (Minimal) - Inherits Root Variables */
+  .default {
+  }
+
+  /* Universe Theme */
+  .universe {
+    --background: 260 50% 5%; /* Deep purple black */
+    --foreground: 260 20% 98%;
+
+    --card: 260 40% 8%;
+    --card-foreground: 260 20% 98%;
+
+    --popover: 260 40% 8%;
+    --popover-foreground: 260 20% 98%;
+
+    --primary: 270 80% 60%; /* Purple */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 260 30% 15%;
+    --secondary-foreground: 260 20% 98%;
+
+    --muted: 260 30% 15%;
+    --muted-foreground: 260 20% 70%;
+
+    --accent: 270 80% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 260 30% 20%;
+    --input: 260 30% 20%;
+    --ring: 270 80% 60%;
+
+    --sidebar-background: 260 50% 5%;
+    --sidebar-foreground: 260 20% 98%;
+    --sidebar-primary: 270 80% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 260 30% 15%;
+    --sidebar-accent-foreground: 270 80% 60%;
+    --sidebar-border: 260 30% 20%;
+    --sidebar-ring: 270 80% 60%;
+  }
+
+  /* Ocean Theme */
+  .ocean {
+    --background: 200 50% 5%; /* Deep ocean blue */
+    --foreground: 200 20% 98%;
+
+    --card: 200 40% 8%;
+    --card-foreground: 200 20% 98%;
+
+    --popover: 200 40% 8%;
+    --popover-foreground: 200 20% 98%;
+
+    --primary: 190 90% 50%; /* Cyan */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 30% 15%;
+    --secondary-foreground: 200 20% 98%;
+
+    --muted: 200 30% 15%;
+    --muted-foreground: 200 20% 70%;
+
+    --accent: 190 90% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 200 30% 20%;
+    --input: 200 30% 20%;
+    --ring: 190 90% 50%;
+
+    --sidebar-background: 200 50% 5%;
+    --sidebar-foreground: 200 20% 98%;
+    --sidebar-primary: 190 90% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 30% 15%;
+    --sidebar-accent-foreground: 190 90% 50%;
+    --sidebar-border: 200 30% 20%;
+    --sidebar-ring: 190 90% 50%;
+  }
+
+  /* Sky Theme (Light) */
+  .sky {
+    --background: 200 50% 98%; /* Light sky blue tint */
+    --foreground: 200 50% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 50% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 50% 10%;
+
+    --primary: 200 90% 50%; /* Sky Blue */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 30% 90%;
+    --secondary-foreground: 200 50% 10%;
+
+    --muted: 200 30% 95%;
+    --muted-foreground: 200 20% 50%;
+
+    --accent: 200 30% 90%;
+    --accent-foreground: 200 90% 50%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 200 30% 85%;
+    --input: 200 30% 85%;
+    --ring: 200 90% 50%;
+
+    --sidebar-background: 200 50% 98%;
+    --sidebar-foreground: 200 50% 10%;
+    --sidebar-primary: 200 90% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 30% 90%;
+    --sidebar-accent-foreground: 200 90% 50%;
+    --sidebar-border: 200 30% 85%;
+    --sidebar-ring: 200 90% 50%;
+  }
+
+  /* Matrix Theme */
+  .matrix {
+    --background: 0 0% 0%; /* Pure Black */
+    --foreground: 120 100% 50%; /* Matrix Green */
+
+    --card: 120 30% 5%;
+    --card-foreground: 120 100% 50%;
+
+    --popover: 120 30% 5%;
+    --popover-foreground: 120 100% 50%;
+
+    --primary: 120 100% 40%; /* Darker Green */
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 120 30% 10%;
+    --secondary-foreground: 120 100% 50%;
+
+    --muted: 120 30% 10%;
+    --muted-foreground: 120 50% 40%;
+
+    --accent: 120 100% 50%;
+    --accent-foreground: 0 0% 0%;
+
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 0%;
+
+    --border: 120 50% 20%;
+    --input: 120 50% 20%;
+    --ring: 120 100% 50%;
+
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 120 100% 50%;
+    --sidebar-primary: 120 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 120 30% 10%;
+    --sidebar-accent-foreground: 120 100% 50%;
+    --sidebar-border: 120 50% 20%;
+    --sidebar-ring: 120 100% 50%;
+  }
+
+  /* Pink/Dreamy Theme */
+  .pink {
+    --background: 300 30% 98%; /* Light pink tint */
+    --foreground: 300 50% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 300 50% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 300 50% 10%;
+
+    --primary: 320 80% 60%; /* Hot Pink */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 300 30% 90%;
+    --secondary-foreground: 300 50% 10%;
+
+    --muted: 300 30% 95%;
+    --muted-foreground: 300 20% 50%;
+
+    --accent: 300 30% 90%;
+    --accent-foreground: 320 80% 60%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 300 30% 85%;
+    --input: 300 30% 85%;
+    --ring: 320 80% 60%;
+
+    --sidebar-background: 300 30% 98%;
+    --sidebar-foreground: 300 50% 10%;
+    --sidebar-primary: 320 80% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 300 30% 90%;
+    --sidebar-accent-foreground: 320 80% 60%;
+    --sidebar-border: 300 30% 85%;
+    --sidebar-ring: 320 80% 60%;
+  }
+
+  /* Coffee Theme */
+  .coffee {
+    --background: 30 30% 15%; /* Dark Brown */
+    --foreground: 30 30% 90%;
+
+    --card: 30 25% 20%;
+    --card-foreground: 30 30% 90%;
+
+    --popover: 30 25% 20%;
+    --popover-foreground: 30 30% 90%;
+
+    --primary: 30 60% 50%; /* Coffee Bean */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 30 20% 25%;
+    --secondary-foreground: 30 30% 90%;
+
+    --muted: 30 20% 25%;
+    --muted-foreground: 30 10% 60%;
+
+    --accent: 30 60% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 20% 30%;
+    --input: 30 20% 30%;
+    --ring: 30 60% 50%;
+
+    --sidebar-background: 30 30% 15%;
+    --sidebar-foreground: 30 30% 90%;
+    --sidebar-primary: 30 60% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 20% 25%;
+    --sidebar-accent-foreground: 30 60% 50%;
+    --sidebar-border: 30 20% 30%;
+    --sidebar-ring: 30 60% 50%;
+  }
+}
+
+@layer utilities {
+  .text-glow {
+    text-shadow: 0 0 10px hsla(var(--primary) / 0.5),
+                 0 0 20px hsla(var(--primary) / 0.3);
+  }
+  
+  .text-glow-accent {
+    text-shadow: 0 0 10px hsla(var(--accent) / 0.5),
+                 0 0 20px hsla(var(--accent) / 0.3);
+  }
+
+  .box-glow {
+    box-shadow: 0 0 15px hsla(var(--primary) / 0.2),
+                inset 0 0 15px hsla(var(--primary) / 0.05);
+  }
+  
+  .border-glow {
+    box-shadow: 0 0 10px hsla(var(--primary) / 0.4);
+    border-color: hsl(var(--primary));
+  }
+
+  /* Neumorphism / Soft UI Utilities - Refined for Compactness */
+  .neu-bg {
+    background-color: var(--neu-bg);
+    color: var(--neu-text);
+  }
+  
+  .neu-flat {
+    background-color: var(--neu-bg);
+    box-shadow: 
+      4px 4px 8px var(--neu-shadow-dark), 
+      -4px -4px 8px var(--neu-shadow-light);
+    border-radius: 0.75rem;
+  }
+  
+  .neu-pressed {
+    background-color: var(--neu-bg);
+    box-shadow: 
+      inset 3px 3px 6px var(--neu-shadow-dark), 
+      inset -3px -3px 6px var(--neu-shadow-light);
+    border-radius: 0.75rem;
+  }
+  
+  .neu-pressed-primary {
+    background-color: var(--neu-bg);
+    color: #3b82f6; /* Keep text blue */
+    box-shadow: 
+      inset 3px 3px 6px var(--neu-shadow-dark), 
+      inset -3px -3px 6px var(--neu-shadow-light);
+    border-radius: 0.75rem;
+    border: 1px solid rgba(59, 130, 246, 0.1); /* Subtle blue border */
+    text-decoration: none !important;
+    outline: none !important;
+  }
+  
+  .neu-btn {
+    background-color: var(--neu-bg);
+    color: var(--neu-text);
+    box-shadow: 
+      4px 4px 8px var(--neu-shadow-dark), 
+      -4px -4px 8px var(--neu-shadow-light);
+    border: 1px solid transparent; /* Prevent layout shift when switching to pressed */
+    transition: all 0.2s ease;
+    border-radius: 0.75rem;
+    text-decoration: none !important;
+    outline: none !important;
+  }
+  
+  .neu-btn:hover {
+    background-color: var(--neu-bg); /* Keep background same to prevent dark overlay */
+    color: #3b82f6; /* Optional: Highlight text/icon color on hover */
+    text-decoration: none !important;
+    border-color: rgba(59, 130, 246, 0.1); /* Subtle border on hover */
+  }
+
+  .neu-btn:active {
+    box-shadow: 
+      inset 2px 2px 4px var(--neu-shadow-dark), 
+      inset -2px -2px 4px var(--neu-shadow-light);
+  }
+  
+  .neu-btn-primary {
+    background-color: var(--neu-bg);
+    color: #3b82f6;
+    font-weight: 600;
+    box-shadow: 
+      4px 4px 8px var(--neu-shadow-dark), 
+      -4px -4px 8px var(--neu-shadow-light);
+    border: 1px solid rgba(59, 130, 246, 0.1);
+  }
+  
+  .neu-btn-primary:hover {
+     color: #2563eb;
+  }
+
+  .neu-btn-primary:active {
+    box-shadow: 
+      inset 3px 3px 6px var(--neu-shadow-dark), 
+      inset -3px -3px 6px var(--neu-shadow-light);
+  }
+  
+  .neu-input {
+    background-color: var(--neu-bg);
+    box-shadow: 
+      inset 3px 3px 6px var(--neu-shadow-dark), 
+      inset -3px -3px 6px var(--neu-shadow-light);
+    border: none;
+    border-radius: 9999px;
+    color: var(--neu-text);
+  }
+  
+  .neu-input:focus {
+    outline: none;
+    box-shadow: 
+      inset 2px 2px 4px var(--neu-shadow-dark), 
+      inset -2px -2px 4px var(--neu-shadow-light),
+      0 0 0 2px #3b82f6;
+  }
+
+  .neu-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--neu-bg);
+    color: var(--neu-text);
+    box-shadow: 
+      4px 4px 8px var(--neu-shadow-dark), 
+      -4px -4px 8px var(--neu-shadow-light);
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    text-decoration: none !important;
+    outline: none !important;
+  }
+  
+  .neu-icon-btn:hover {
+    color: #3b82f6;
+    border-color: rgba(59, 130, 246, 0.1);
+  }
+  
+  .neu-icon-btn:active {
+    box-shadow: 
+      inset 2px 2px 4px var(--neu-shadow-dark), 
+      inset -2px -2px 4px var(--neu-shadow-light);
+  }
+  
+  .neu-text-primary {
+    color: #3b82f6;
+  }
+  
+  .neu-badge {
+    background-color: var(--neu-bg);
+    color: #fbbf24;
+    box-shadow: 
+      2px 2px 4px var(--neu-shadow-dark), 
+      -2px -2px 4px var(--neu-shadow-light);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Mobile safe area for notched devices */
+@layer utilities {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Prevent pull-to-refresh and overscroll on mobile */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* Smooth scrolling on mobile */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Fix for 100vh on mobile browsers */
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+
+  .h-screen {
+    height: 100dvh;
+  }
+}

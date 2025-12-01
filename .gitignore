@@ -35,3 +35,7 @@ supabase/.temp/
 *.sw?
 .trae/
 * (2).*
+
+# Secrets
+env.bak
+*.bak

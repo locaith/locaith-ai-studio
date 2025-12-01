@@ -1,14 +1,29 @@
 import React, { useState, KeyboardEvent, useRef, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { Image, Mic, Square, ArrowUp } from "lucide-react";
+import { useLayoutContext } from "../src/context/LayoutContext";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   onStop?: () => void;
   isLoading: boolean;
+  placeholder?: string;
+  isLandingPage?: boolean;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isLoading }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isLoading, placeholder, isLandingPage }) => {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { setIsCollapsed } = useLayoutContext();
 
   const handleSend = () => {
     if (input.trim() && !isLoading) {
@@ -30,6 +45,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isLoading 
     }
   };
 
+  const handleFocus = () => {
+    if (!isLandingPage) {
+       setIsCollapsed(true);
+    }
+  };
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -39,57 +60,90 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, onStop, isLoading 
   }, [input]);
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto">
-      <div className="relative flex flex-col bg-white/90 border border-gray-200 rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-brand-500 transition-all">
-        <textarea
+    <div className={cn("relative w-full mx-auto", isLandingPage ? "max-w-3xl" : "max-w-4xl")}>
+      <div className="relative flex flex-col neu-pressed rounded-3xl transition-all duration-300 overflow-hidden p-1">
+        <Label htmlFor="chat-input" className="sr-only">Chat Input</Label>
+        <Textarea
+          id="chat-input"
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Describe the website you want to build..."
-          className="w-full bg-transparent text-gray-900 placeholder-gray-400 text-sm resize-none focus:outline-none max-h-48 py-3 px-4 scrollbar-hide"
+          onFocus={handleFocus}
+          placeholder={placeholder || "Mô tả website bạn muốn xây dựng..."}
+          className="w-full bg-transparent text-foreground placeholder:text-muted-foreground text-base resize-none border-none shadow-none ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-64 py-4 px-5 min-h-[3.5rem]"
+          style={{ border: 'none', boxShadow: 'none', outline: 'none' }}
           rows={1}
-          // Allow typing while loading, but disable if loading and no onStop
           disabled={isLoading && !onStop}
         />
 
         {/* Input Actions Toolbar */}
-        <div className="flex justify-between items-center px-2 pb-2 mt-1">
-          <div className="flex items-center gap-1 ml-1">
-            <button
-              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Upload Image (Simulated)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-            </button>
-            <button
-              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Voice Input (Simulated)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-            </button>
+        <div className="flex justify-between items-center px-3 pb-3 pt-0">
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-transparent rounded-full transition-colors"
+                  >
+                    <Image className="h-5 w-5" />
+                    <span className="sr-only">Upload Image</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Tải ảnh lên</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-transparent rounded-full transition-colors"
+                  >
+                    <Mic className="h-5 w-5" />
+                    <span className="sr-only">Voice Input</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Nhập bằng giọng nói</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          <button
-            onClick={isLoading ? handleStop : handleSend}
-            disabled={(!input.trim() && !isLoading)}
-            className={`p-2 rounded-xl flex-shrink-0 transition-colors ${(input.trim() || isLoading)
-                ? 'bg-brand-600 text-white hover:bg-brand-500 shadow-md'
-                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              }`}
-            title={isLoading ? "Stop Generation" : "Send"}
-          >
-            {isLoading ? (
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-              </svg>
-            )}
-          </button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={isLoading ? handleStop : handleSend}
+                  disabled={(!input.trim() && !isLoading)}
+                  size="icon"
+                  className={cn(
+                    "h-9 w-9 transition-all duration-200 rounded-full flex items-center justify-center",
+                    (input.trim() || isLoading)
+                      ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 hover:scale-105 active:scale-95'
+                      : 'neu-flat text-muted-foreground/50 cursor-not-allowed shadow-none'
+                  )}
+                >
+                  {isLoading ? (
+                    <Square className="h-4 w-4 fill-current" />
+                  ) : (
+                    <ArrowUp className="h-5 w-5" />
+                  )}
+                  <span className="sr-only">{isLoading ? "Dừng" : "Gửi"}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isLoading ? "Dừng tạo" : "Gửi yêu cầu"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     </div>
