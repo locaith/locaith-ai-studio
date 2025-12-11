@@ -11,14 +11,20 @@ interface AuthModalProps {
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode }) => {
   const [isLogin, setIsLogin] = useState(initialMode !== 'signup')
-  const { signInWithGoogle, loading } = useAuth()
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, resendVerificationEmail, loading } = useAuth()
   const navigate = useNavigate()
+  
+  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [authError, setAuthError] = useState<string | null>(null)
   
   const videos = [
     '/locaith-tv-animation-2-xuathien.mp4',
-    '/Locaith AI Co.mp4',
-    '/Locaith AI Co-2.mp4',
-    '/Locaith AI Co-3.mp4'
+    '/intro.mp4',
+    '/Locaith-AI-Co-2.mp4',
+    '/Locaith-AI-Co-3.mp4'
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
 
@@ -39,6 +45,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
       navigate('/')
     } catch (error) {
       console.error('Google sign in failed:', error)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    try {
+      await resendVerificationEmail(email)
+      setAuthError('Verification email resent! Please check your inbox.')
+    } catch (err: any) {
+      setAuthError(err.message || 'Failed to resend email')
+    }
+  }
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAuthError(null)
+
+    if (!email || !password) {
+      setAuthError('Please enter both email and password')
+      return
+    }
+
+    if (!isLogin && !fullName) {
+      setAuthError('Please enter your full name')
+      return
+    }
+
+    try {
+      if (isLogin) {
+        await signInWithEmail(email, password)
+        onClose()
+        navigate('/')
+      } else {
+        await signUpWithEmail(email, password, fullName)
+        setAuthError('Registration successful! Please check your email to confirm your account.')
+        setIsLogin(true) // Switch to login after signup
+      }
+    } catch (err: any) {
+      console.error('Authentication error:', err)
+      setAuthError(err.message || 'Authentication failed')
     }
   }
 
@@ -63,53 +108,137 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
 
             {/* Heading */}
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Log into your account
+              {showEmailForm 
+                ? (isLogin ? 'Log into your account' : 'Create your account')
+                : 'Log into your account'
+              }
             </h1>
 
-            {/* Google Auth Button */}
-            <button
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full mt-8 flex items-center justify-center gap-3 bg-black hover:bg-gray-900 text-white rounded-lg py-3.5 px-4 mb-4 transition-colors disabled:opacity-50 font-medium"
-            >
-              {loading ? 'Signing in...' : 'Continue with Google'}
-            </button>
+            {showEmailForm ? (
+              <form onSubmit={handleEmailAuth} className="space-y-4 mt-8">
+                {authError && (
+                  <div className={`p-3 rounded-lg text-sm ${authError.includes('successful') || authError.includes('resent') ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                    {authError}
+                    {authError.includes('Email not confirmed') && (
+                      <button
+                        type="button"
+                        onClick={handleResendVerification}
+                        className="block mt-2 text-blue-600 hover:underline font-semibold"
+                      >
+                        Resend Verification Email
+                      </button>
+                    )}
+                  </div>
+                )}
+                
+                {!isLogin && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all"
+                      placeholder="John Doe"
+                    />
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all"
+                    placeholder="you@company.com"
+                  />
+                </div>
 
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">or</span>
-              </div>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
 
-            {/* Email Button */}
-            <button className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-lg py-3.5 px-4 mb-4 transition-colors font-medium text-gray-700">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M22 6L12 13L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Login with email
-            </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-black hover:bg-gray-900 text-white rounded-lg py-3.5 px-4 font-medium transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
+                </button>
 
-            {/* Apple Button */}
-            <button className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-lg py-3.5 px-4 mb-6 transition-colors font-medium text-gray-700">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-              </svg>
-              Login with Apple
-            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEmailForm(false)
+                    setAuthError(null)
+                  }}
+                  className="w-full text-gray-500 text-sm hover:text-gray-700 font-medium"
+                >
+                  Back to all sign in options
+                </button>
+              </form>
+            ) : (
+              <>
+                {/* Google Auth Button */}
+                <button
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full mt-8 flex items-center justify-center gap-3 bg-black hover:bg-gray-900 text-white rounded-lg py-3.5 px-4 mb-4 transition-colors disabled:opacity-50 font-medium"
+                >
+                  {loading ? 'Signing in...' : 'Continue with Google'}
+                </button>
+
+                {/* Divider */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-gray-500">or</span>
+                  </div>
+                </div>
+
+                {/* Email Button */}
+                <button 
+                  onClick={() => setShowEmailForm(true)}
+                  className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-lg py-3.5 px-4 mb-4 transition-colors font-medium text-gray-700"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M22 6L12 13L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Login with email
+                </button>
+
+                {/* Apple Button */}
+                <button className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-lg py-3.5 px-4 mb-6 transition-colors font-medium text-gray-700">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                  </svg>
+                  Login with Apple
+                </button>
+              </>
+            )}
 
             {/* Sign up link */}
             <p className="text-center text-gray-600 text-sm">
-              Don't have an account?{' '}
+              {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
               <button
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  setIsLogin(!isLogin)
+                  setAuthError(null)
+                }}
                 className="text-blue-600 hover:underline font-semibold"
               >
-                Sign up
+                {isLogin ? 'Sign up' : 'Sign in'}
               </button>
             </p>
 

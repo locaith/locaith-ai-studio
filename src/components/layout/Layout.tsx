@@ -15,16 +15,17 @@ import {
   MessageCircle
 } from "lucide-react";
 import { ShaderGradientCanvas, ShaderGradient } from 'shadergradient';
+import StarBackground from '../../components/ui/StarBackground';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
-const MobileBottomNav = ({ activeFeature, onSelect }: { activeFeature: FeatureType, onSelect: (f: FeatureType) => void }) => {
+const MobileBottomNav = ({ activeFeature, onSelect, unreadCount }: { activeFeature: FeatureType, onSelect: (f: FeatureType) => void, unreadCount: number }) => {
   const navItems = [
     { id: 'dashboard', label: 'Tư vấn AI', icon: MessageSquare },
     { id: 'jobs', label: 'Việc làm', icon: Briefcase },
-    { id: 'chat', label: 'Chat', icon: Users },
+    { id: 'chat', label: 'Chat', icon: Users, badge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined },
     { id: 'apps', label: 'Ứng dụng', icon: LayoutGrid },
     { id: 'explore', label: 'Khám phá', icon: Compass },
     { id: 'profile', label: 'Cá nhân', icon: User }, 
@@ -64,7 +65,7 @@ const MobileBottomNav = ({ activeFeature, onSelect }: { activeFeature: FeatureTy
 };
 
 const LayoutContent = ({ children }: LayoutProps) => {
-  const { isCollapsed, setIsCollapsed, toggleSidebar, isAuthModalOpen, setAuthModalOpen, authMode } = useLayoutContext();
+  const { isCollapsed, setIsCollapsed, toggleSidebar, isAuthModalOpen, setAuthModalOpen, authMode, unreadCount } = useLayoutContext();
   const location = useLocation();
   const navigate = useNavigate();
   const { setTheme, theme } = useTheme();
@@ -80,13 +81,16 @@ const LayoutContent = ({ children }: LayoutProps) => {
     if (path.includes('search')) return 'search';
     if (path.includes('apps')) return 'apps';
     if (path.includes('explore')) return 'explore';
-    if (path.includes('jobs')) return 'jobs';
-    if (path.includes('experts')) return 'experts';
+    if (path.includes('jobs') || path.includes('giao-viec-lam')) return 'jobs';
+    if (path.includes('jobs/my-jobs')) return 'jobs';
+    if (path.includes('experts') || path.includes('chuyen-gia')) return 'experts';
     if (path.includes('automation')) return 'automation';
     if (path.includes('voice')) return 'voice';
     if (path.includes('chat')) return 'chat';
     if (path.includes('check')) return 'check';
     if (path.includes('profile')) return 'profile' as FeatureType;
+    if (path.includes('history')) return 'profile' as FeatureType;
+    if (path.includes('projects')) return 'projects' as FeatureType;
     if (path.includes('settings')) return 'settings' as FeatureType;
     return 'dashboard';
   };
@@ -107,17 +111,20 @@ const LayoutContent = ({ children }: LayoutProps) => {
      else if (feature === 'search') navigate('/search');
      else if (feature === 'apps') navigate('/apps');
      else if (feature === 'explore') navigate('/explore');
-     else if (feature === 'jobs') navigate('/jobs');
-     else if (feature === 'experts') navigate('/experts');
+     else if (feature === 'jobs') navigate('/giao-viec-lam');
+     else if (feature === 'experts') navigate('/chuyen-gia');
      else if (feature === 'automation') navigate('/automation');
      else if (feature === 'voice') navigate('/voice');
      else if (feature === 'chat') navigate('/chat');
      else if (feature === 'check') navigate('/check');
      else if (feature === 'profile') navigate('/profile');
+     else if (feature === 'projects') navigate('/projects');
      else if (feature === 'settings') navigate('/settings');
   };
 
-  const showGradient = location.pathname === '/' || location.pathname === '/search';
+  const showGradient = location.pathname === '/' || location.pathname === '/search' || location.pathname === '/jobs' || location.pathname === '/giao-viec-lam' || location.pathname === '/experts' || location.pathname === '/chuyen-gia' || location.pathname === '/check';
+  const isDashboard = location.pathname === '/';
+  const isDarkMode = theme === 'dark';
 
   return (
     <div className="flex h-screen bg-background overflow-hidden relative">
@@ -126,19 +133,9 @@ const LayoutContent = ({ children }: LayoutProps) => {
         className="absolute inset-0 pointer-events-none transition-opacity duration-700"
         style={{ opacity: showGradient ? 1 : 0, zIndex: 0 }}
       >
-        {/* ShaderGradientCanvas disabled for stability check
-        <ShaderGradientCanvas
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-        >
-            <ShaderGradient
-                control="query"
-                urlString="https://www.shadergradient.co/customize?animate=on&axesHelper=off&bgColor1=%23000000&bgColor2=%23000000&brightness=1.2&cAzimuthAngle=180&cDistance=3.6&cPolarAngle=90&cameraZoom=1&color1=%23454bff&color2=%2358c1db&color3=%23965ce1&destination=onCanvas&embedMode=off&envPreset=city&format=gif&fov=45&frameRate=10&gizmoHelper=hide&grain=off&lightType=3d&pixelDensity=1&positionX=-1.4&positionY=0&positionZ=0&range=enabled&rangeEnd=40&rangeStart=0&reflection=0.1&rotationX=0&rotationY=10&rotationZ=50&shader=defaults&type=plane&uDensity=1.3&uFrequency=5.5&uSpeed=0.2&uStrength=4&uTime=0&wireframe=false"
-            />
-        </ShaderGradientCanvas>
-        */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-black" />
-        {/* Dark Overlay for Professional Readability */}
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-[1px]" />
+        {showGradient && (
+          <StarBackground />
+        )}
       </div>
 
       <div className="hidden md:flex h-full relative z-10">
@@ -159,7 +156,7 @@ const LayoutContent = ({ children }: LayoutProps) => {
       </main>
       
       <div className="relative z-10">
-        <MobileBottomNav activeFeature={getActiveFeature()} onSelect={handleSelect} />
+        <MobileBottomNav activeFeature={getActiveFeature()} onSelect={handleSelect} unreadCount={unreadCount} />
       </div>
       
       {/* Global Auth Modal */}

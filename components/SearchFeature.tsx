@@ -108,28 +108,7 @@ export const SearchFeature: React.FC = () => {
 
   return (
     <div className="flex h-full w-full text-foreground overflow-hidden font-sans animate-fade-in-up transition-colors duration-300 flex-col relative" style={{ background: 'transparent' }}>
-      {/* Background Shader */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
-          <ShaderGradientCanvas
-              pointerEvents="none"
-              style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
-              }}
-          >
-              <ShaderGradient
-                  control="query"
-                  urlString="https://www.shadergradient.co/customize?animate=on&axesHelper=off&bgColor1=%23000000&bgColor2=%23000000&brightness=1.2&cAzimuthAngle=180&cDistance=3.6&cPolarAngle=90&cameraZoom=1&color1=%23454bff&color2=%2358c1db&color3=%23965ce1&destination=onCanvas&embedMode=off&envPreset=city&format=gif&fov=45&frameRate=10&gizmoHelper=hide&grain=off&lightType=3d&pixelDensity=1&positionX=-1.4&positionY=0&positionZ=0&range=enabled&rangeEnd=40&rangeStart=0&reflection=0.1&rotationX=0&rotationY=10&rotationZ=50&shader=defaults&type=plane&uDensity=1.3&uFrequency=5.5&uSpeed=0.2&uStrength=4&uTime=0&wireframe=false"
-              />
-          </ShaderGradientCanvas>
-      </div>
-      {/* Blur Overlay */}
-      <div className="absolute inset-0 z-0 pointer-events-none backdrop-blur-[2px] bg-background/30" />
-
+      
       {/* Main Content Area */}
       <div className={`${hasSearched ? 'w-full max-w-[1920px] mx-auto px-4' : 'w-full max-w-4xl mx-auto mt-[10vh] md:mt-[15vh] px-6'} flex flex-col transition-all duration-700 h-full relative z-10`}>
         
@@ -139,7 +118,7 @@ export const SearchFeature: React.FC = () => {
            {!hasSearched && (
              <div className="mb-8 md:mb-12 flex flex-col items-center animate-fade-in-down">
                 <div className="flex items-center justify-center gap-3 md:gap-4 mb-4">
-                    <div className="neu-flat p-4 rounded-2xl">
+                    <div className="p-4 rounded-2xl">
                         <img 
                             src="/logo-locaith.png" 
                             alt="Locaith Logo" 

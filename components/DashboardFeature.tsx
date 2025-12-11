@@ -66,27 +66,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
 
     return (
         <div className="h-full w-full overflow-hidden bg-transparent flex flex-col relative animate-fade-in-up" style={{ background: 'transparent' }}>
-            {/* Background Shader */}
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
-                <ShaderGradientCanvas
-                    pointerEvents="none"
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        pointerEvents: 'none',
-                    }}
-                >
-                    <ShaderGradient
-                        control="query"
-                        urlString="https://www.shadergradient.co/customize?animate=on&axesHelper=off&bgColor1=%23000000&bgColor2=%23000000&brightness=1.2&cAzimuthAngle=180&cDistance=3.6&cPolarAngle=90&cameraZoom=1&color1=%23454bff&color2=%2358c1db&color3=%23965ce1&destination=onCanvas&embedMode=off&envPreset=city&format=gif&fov=45&frameRate=10&gizmoHelper=hide&grain=off&lightType=3d&pixelDensity=1&positionX=-1.4&positionY=0&positionZ=0&range=enabled&rangeEnd=40&rangeStart=0&reflection=0.1&rotationX=0&rotationY=10&rotationZ=50&shader=defaults&type=plane&uDensity=1.3&uFrequency=5.5&uSpeed=0.2&uStrength=4&uTime=0&wireframe=false"
-                    />
-                </ShaderGradientCanvas>
-            </div>
-            {/* Blur Overlay */}
-            <div className="absolute inset-0 z-0 pointer-events-none backdrop-blur-[2px] bg-background/30" />
+
 
             {/* Content Wrapper */}
             <div className="relative z-10 h-full w-full overflow-y-auto flex flex-col">
@@ -116,8 +96,8 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                     <div className="flex flex-col items-center space-y-6 mt-4 md:mt-0">
                         <div className="space-y-2">
                             <div className="mb-6 flex justify-center">
-                                <div className="neu-flat p-6 rounded-[2rem]">
-                                    <img src="/logo-locaith.png" alt="Locaith Logo" className="w-20 h-20 object-contain" />
+                                <div className="p-6 rounded-[2rem]">
+                                    <img src="/logo-locaith.png" alt="Locaith Logo" className="w-20 h-20 object-contain drop-shadow-lg" />
                                 </div>
                             </div>
                             <h1 className="text-4xl md:text-6xl font-bold tracking-tighter text-foreground">

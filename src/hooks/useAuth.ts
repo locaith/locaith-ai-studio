@@ -99,50 +99,114 @@ export const useAuth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
+          redirectTo: `${redirectUrl}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
-        }
+        },
       })
 
       if (error) throw error
     } catch (err: any) {
-      console.error('Error signing in with Google:', err)
-      setError({ message: err.message || 'Failed to sign in with Google' })
+      console.error('Google sign in error:', err)
+      setError({
+        message: err.message || 'Failed to sign in with Google',
+        code: err.code
+      })
+    } finally {
       setLoading(false)
-      throw err
     }
   }
 
-  // Sign out
+  // Sign in with Email
+  const signInWithEmail = async (email: string, password: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) throw error
+      return data
+    } catch (err: any) {
+      console.error('Email sign in error:', err)
+      setError({
+        message: err.message || 'Failed to sign in with email',
+        code: err.code
+      })
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Sign up with Email
+  const signUpWithEmail = async (email: string, password: string, fullName: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+          redirectTo: `${window.location.origin}/`
+        }
+      })
+
+      if (error) throw error
+      return data
+    } catch (err: any) {
+      console.error('Email sign up error:', err)
+      setError({
+        message: err.message || 'Failed to sign up',
+        code: err.code
+      })
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resendVerificationEmail = async (email: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      })
+      if (error) throw error
+    } catch (err: any) {
+      console.error('Resend verification error:', err)
+      setError({
+        message: err.message || 'Failed to resend verification email',
+        code: err.code
+      })
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const signOut = async () => {
     try {
       setLoading(true)
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-    } catch (err: any) {
-      console.error('Error signing out:', err)
-      setError({ message: err.message || 'Failed to sign out' })
-      throw err
-    }
-  }
-
-  // Refresh session
-  const refreshSession = async () => {
-    try {
-      setLoading(true)
-      const { data: { session }, error } = await supabase.auth.refreshSession()
-      if (error) throw error
-      if (session) {
-        setSession(session)
-        await updateUserFromSession(session)
-      }
-    } catch (err: any) {
-      console.error('Error refreshing session:', err)
-      setError({ message: err.message || 'Failed to refresh session' })
-      throw err
+      await supabase.auth.signOut()
+      setUser(null)
+      setSession(null)
+    } catch (error) {
+      console.error('Error signing out:', error)
     } finally {
       setLoading(false)
     }
@@ -156,8 +220,10 @@ export const useAuth = () => {
     loading,
     error,
     signInWithGoogle,
+    signInWithEmail,
+    signUpWithEmail,
+    resendVerificationEmail,
     signOut,
-    refreshSession,
     clearError,
     isAuthenticated: !!user
   }

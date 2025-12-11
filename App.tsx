@@ -26,6 +26,17 @@ const SocialChatFeature = React.lazy(() => import('./components/SocialChatFeatur
 const ContentAutomationFeature = React.lazy(() => import('./components/ContentAutomationFeature').then(m => ({ default: m.ContentAutomationFeature })));
 const SettingsFeature = React.lazy(() => import('./components/SettingsFeature').then(m => ({ default: m.SettingsFeature })));
 const ProfileFeature = React.lazy(() => import('./components/ProfileFeature').then(m => ({ default: m.ProfileFeature })));
+const ProjectsFeature = React.lazy(() => import('./components/ProjectsFeature').then(m => ({ default: m.ProjectsFeature })));
+const MyJobsFeature = React.lazy(() => import('./components/MyJobsFeature').then(m => ({ default: m.MyJobsFeature })));
+const HistoryFeature = React.lazy(() => import('./components/HistoryFeature').then(m => ({ default: m.HistoryFeature })));
+const MembershipFeature = React.lazy(() => import('./components/MembershipFeature').then(m => ({ default: m.MembershipFeature })));
+const PromotionsFeature = React.lazy(() => import('./components/PromotionsFeature').then(m => ({ default: m.PromotionsFeature })));
+const MembershipTierFeature = React.lazy(() => import('./components/MembershipTierFeature').then(m => ({ default: m.MembershipTierFeature })));
+const ReferralFeature = React.lazy(() => import('./components/ReferralFeature').then(m => ({ default: m.ReferralFeature })));
+const ExpertUpdateFeature = React.lazy(() => import('./components/ExpertUpdateFeature').then(m => ({ default: m.ExpertUpdateFeature })));
+const PaymentFeature = React.lazy(() => import('./components/PaymentFeature').then(m => ({ default: m.PaymentFeature })));
+const WalletHistoryFeature = React.lazy(() => import('./components/WalletHistoryFeature').then(m => ({ default: m.WalletHistoryFeature })));
+const UpgradeFeature = React.lazy(() => import('./components/UpgradeFeature').then(m => ({ default: m.UpgradeFeature })));
 const VoiceChat = React.lazy(() => import('./components/VoiceChat'));
 
 // Wrappers for Navigation and State
@@ -98,11 +109,24 @@ const App = () => (
                   <Route path="/explore" element={<ExploreFeature />} />
                   <Route path="/search" element={<SearchFeature />} />
                   <Route path="/jobs" element={<JobsFeature />} />
+                  <Route path="/giao-viec-lam" element={<JobsFeature />} />
                   <Route path="/experts" element={<ExpertsFeature />} />
+                  <Route path="/chuyen-gia" element={<ExpertsFeature />} />
                   <Route path="/chat" element={<SocialChatFeature />} />
                   <Route path="/check" element={<CheckFeature />} />
                   <Route path="/settings" element={<SettingsFeature />} />
                   <Route path="/profile" element={<ProfileFeature />} />
+                  <Route path="/profile/payment" element={<PaymentFeature />} />
+                  <Route path="/profile/wallet-history" element={<WalletHistoryFeature />} />
+                  <Route path="/profile/upgrade" element={<UpgradeFeature />} />
+                  <Route path="/profile/expert-update" element={<ExpertUpdateFeature />} />
+                  <Route path="/projects" element={<ProjectsFeature />} />
+                  <Route path="/jobs/my-jobs" element={<MyJobsFeature />} />
+                  <Route path="/history" element={<HistoryFeature />} />
+                  <Route path="/membership/packages" element={<MembershipFeature />} />
+                  <Route path="/membership/promos" element={<PromotionsFeature />} />
+                  <Route path="/membership/tier" element={<MembershipTierFeature />} />
+                  <Route path="/membership/referral" element={<ReferralFeature />} />
                   {/* Add catch-all route */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

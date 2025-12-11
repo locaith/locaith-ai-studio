@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from "next-themes";
 
-export type FeatureType = 'dashboard' | 'web-builder' | 'design' | 'fashion' | 'text' | 'search' | 'voice' | 'automation' | 'settings' | 'apps' | 'explore' | 'jobs' | 'experts' | 'chat' | 'profile' | 'check';
+export type FeatureType = 'dashboard' | 'web-builder' | 'design' | 'fashion' | 'text' | 'search' | 'voice' | 'automation' | 'settings' | 'apps' | 'explore' | 'jobs' | 'experts' | 'chat' | 'profile' | 'check' | 'projects';
 export type ThemeType = 'default' | 'universe' | 'ocean' | 'sky' | 'matrix' | 'pink' | 'coffee' | 'custom';
 
 interface GlobalSidebarProps {
@@ -57,9 +57,10 @@ interface SidebarItemProps {
   icon: React.ReactNode;
   label: string;
   isCollapsed?: boolean;
+  badge?: number | string;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ active, onClick, icon, label, isCollapsed }) => {
+const SidebarItem: React.FC<SidebarItemProps> = ({ active, onClick, icon, label, isCollapsed, badge }) => {
   return (
     <TooltipProvider>
       <Tooltip>
@@ -76,14 +77,24 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ active, onClick, icon, label,
             )}
             onClick={onClick}
           >
-            <div className={cn("flex items-center", isCollapsed ? "justify-center w-full" : "")}>
+            <div className={cn("flex items-center relative", isCollapsed ? "justify-center w-full" : "")}>
                 {icon}
+                {isCollapsed && badge && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold">
+                    {badge}
+                  </span>
+                )}
             </div>
             <span className={cn(
-              "overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap text-sm",
+              "overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap text-sm flex-1 flex items-center justify-between",
               isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-3"
             )}>
               {label}
+              {!isCollapsed && badge && (
+                <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] text-white font-bold">
+                  {badge}
+                </span>
+              )}
             </span>
           </Button>
         </TooltipTrigger>
@@ -105,7 +116,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   isCollapsed = false,
   onToggleCollapse
 }) => {
-  const { setAuthModalOpen, setAuthMode } = useLayoutContext();
+  const { setAuthModalOpen, setAuthMode, unreadCount } = useLayoutContext();
   const { user, isAuthenticated } = useAuth();
   const { theme, setTheme } = useTheme();
 
@@ -238,6 +249,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             icon={<MessageCircle className="h-4 w-4" />}
             label="Chat trực tiếp"
             isCollapsed={isCollapsed}
+            badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined}
           />
           <SidebarItem
             active={activeFeature === 'check'}
@@ -276,10 +288,10 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
           
           {/* Project List Placeholder */}
           <SidebarItem
-             active={false}
-             onClick={() => {}}
+             active={activeFeature === 'projects'}
+             onClick={() => onSelect('projects')}
              icon={<Folder className="h-4 w-4" />}
-             label="My First Project"
+             label="Dự án đầu tiên"
              isCollapsed={isCollapsed}
           />
            <SidebarItem
@@ -300,34 +312,41 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
         <Separator className="my-2 opacity-50" />
 
         {isAuthenticated ? (
-          <Button
-            className={cn(
-              "mb-2 transition-all duration-200 h-auto",
-              isCollapsed 
-                ? "w-10 h-10 p-0 ml-3 neu-icon-btn rounded-full" 
-                : "w-full justify-start px-2 py-2",
-              activeFeature === 'profile'
-                ? isCollapsed ? "neu-pressed-primary text-primary" : "neu-pressed-primary text-primary font-medium" 
-                : isCollapsed ? "neu-btn hover:text-primary" : "neu-btn hover:text-primary text-muted-foreground"
-            )}
-            onClick={() => onSelect('profile')}
-          >
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback className={cn(activeFeature === 'profile' ? "text-primary" : "")}>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-            </Avatar>
-            <div className={cn(
-              "flex flex-col items-start overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap",
-              isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100 ml-3"
-            )}>
-                <span className={cn("text-sm font-medium truncate", activeFeature === 'profile' ? "text-primary" : "")}>
-                  {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
-                </span>
-                <span className={cn("text-xs truncate", activeFeature === 'profile' ? "text-muted-foreground" : "text-muted-foreground")}>
-                  {user?.email}
-                </span>
-            </div>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className={cn(
+                    "mb-2 transition-all duration-200 h-auto",
+                    isCollapsed 
+                      ? "w-10 h-10 p-0 ml-3 neu-icon-btn rounded-full" 
+                      : "w-full justify-start px-2 py-2",
+                    activeFeature === 'profile'
+                      ? isCollapsed ? "neu-pressed-primary text-primary" : "neu-pressed-primary text-primary font-medium" 
+                      : isCollapsed ? "neu-btn hover:text-primary" : "neu-btn hover:text-primary text-muted-foreground"
+                  )}
+                  onClick={() => onSelect('profile')}
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.user_metadata?.avatar_url} />
+                    <AvatarFallback className={cn(activeFeature === 'profile' ? "text-primary" : "")}>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                  </Avatar>
+                  <div className={cn(
+                    "flex flex-col items-start overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap",
+                    isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100 ml-3"
+                  )}>
+                      <span className={cn("text-sm font-medium truncate", activeFeature === 'profile' ? "text-primary" : "")}>
+                        {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
+                      </span>
+                      <span className={cn("text-xs truncate", activeFeature === 'profile' ? "text-muted-foreground" : "text-muted-foreground")}>
+                        {user?.email}
+                      </span>
+                  </div>
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && <TooltipContent side="right">Hồ sơ cá nhân</TooltipContent>}
+            </Tooltip>
+          </TooltipProvider>
         ) : (
           <div className="flex flex-col gap-1">
             <TooltipProvider>

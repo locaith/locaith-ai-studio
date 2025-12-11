@@ -8,9 +8,11 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) => {
-  const { signInWithGoogle, loading: authLoading, error, clearError } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, resendVerificationEmail, loading: authLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   // FAILSAFE: Auto-reset if stuck in loading (soft handling)
@@ -20,8 +22,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
     const timer = setTimeout(() => {
       console.warn('⚠️ Sign in loading timeout - please try again')
       alert('Sign in seems to be taking too long. Please try again.');
+      setIsSigningIn(false);
       // Do not clear storage or reload to avoid losing session
-    }, 8000)
+    }, 15000)
 
     return () => clearTimeout(timer)
   }, [isSigningIn])
@@ -41,20 +44,60 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
 
   const handleRetry = () => {
     clearError?.();
-    handleGoogleLogin();
+    if (email && password) {
+      handleSubmit(new Event('submit') as any);
+    } else {
+      handleGoogleLogin();
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleResendVerification = async () => {
+    try {
+      await resendVerificationEmail(email);
+      alert('Verification email resent! Please check your inbox.');
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Email/Password login is UI only for now as per instructions
-    console.log("Email login attempted:", email);
+    if (isSigningIn) return;
+    
+    if (!email || !password) {
+        alert('Please enter both email and password');
+        return;
+    }
+
+    if (isSignUp && !fullName) {
+        alert('Please enter your full name');
+        return;
+    }
+
+    try {
+        setIsSigningIn(true);
+        clearError?.();
+        
+        if (isSignUp) {
+            await signUpWithEmail(email, password, fullName);
+            alert('Registration successful! Please check your email to confirm your account.');
+            setIsSignUp(false); // Switch back to login
+        } else {
+            await signInWithEmail(email, password);
+            onLoginSuccess();
+        }
+    } catch (err) {
+        console.error("Authentication failed:", err);
+    } finally {
+        setIsSigningIn(false);
+    }
   };
 
   const videos = [
     '/locaith-tv-animation-2-xuathien.mp4',
-    '/Locaith AI Co.mp4',
-    '/Locaith AI Co-2.mp4',
-    '/Locaith AI Co-3.mp4'
+    '/intro.mp4',
+    '/Locaith-AI-Co-2.mp4',
+    '/Locaith-AI-Co-3.mp4'
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
 
@@ -110,15 +153,44 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
               className="w-12 h-12 mb-6"
             />
             <h1 className="text-4xl font-bold text-white tracking-tight mb-3">
-              Locaith Studio
+              {isSignUp ? 'Create Account' : 'Locaith Studio'}
             </h1>
             <p className="text-slate-400 text-lg">
-              Log in to control your entire AI ecosystem.
+              {isSignUp ? 'Join us to build your AI ecosystem.' : 'Log in to control your entire AI ecosystem.'}
             </p>
           </div>
 
           {/* Form */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <p className="text-red-400 text-sm">{error.message}</p>
+              {error.message.includes('Email not confirmed') && (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  className="mt-2 text-brand-400 hover:text-brand-300 text-sm font-medium underline"
+                >
+                  Resend Verification Email
+                </button>
+              )}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-5">
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full rounded-xl bg-slate-900/50 border border-slate-800 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder-slate-600"
+                  placeholder="John Doe"
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">
                 Email
@@ -147,9 +219,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-white text-black font-semibold py-3.5 text-sm hover:bg-slate-200 transition-colors shadow-lg shadow-white/5"
+              disabled={isSigningIn}
+              className="w-full rounded-xl bg-white text-black font-semibold py-3.5 text-sm hover:bg-slate-200 transition-colors shadow-lg shadow-white/5 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Sign In
+              {isSigningIn ? (isSignUp ? 'Creating Account...' : 'Signing In...') : (isSignUp ? 'Sign Up' : 'Sign In')}
             </button>
           </form>
 
@@ -165,9 +238,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
           <button
             onClick={handleGoogleLogin}
             disabled={isSigningIn}
-            className="w-full rounded-xl bg-slate-900 border border-slate-800 text-white font-medium py-3.5 text-sm hover:bg-slate-800 transition-colors flex items-center justify-center gap-3"
+            className="w-full rounded-xl bg-slate-900 border border-slate-800 text-white font-medium py-3.5 text-sm hover:bg-slate-800 transition-colors flex items-center justify-center gap-3 disabled:opacity-70"
           >
-            {isSigningIn ? (
+            {isSigningIn && !email ? (
               <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
             ) : (
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -181,10 +254,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
           </button>
 
           <p className="mt-8 text-center text-sm text-slate-500">
-            Don't have an account?{" "}
-            <a href="#" className="text-brand-400 hover:text-brand-300 transition-colors">
-              Sign up now
-            </a>
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{" "}
+            <button 
+                onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    clearError?.();
+                    setEmail('');
+                    setPassword('');
+                    setFullName('');
+                }} 
+                className="text-brand-400 hover:text-brand-300 transition-colors font-medium focus:outline-none"
+            >
+              {isSignUp ? 'Sign in' : 'Sign up now'}
+            </button>
           </p>
         </div>
 
