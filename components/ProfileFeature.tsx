@@ -3,21 +3,27 @@ import {
   User, Settings, HelpCircle, LogOut, ChevronRight,
   CreditCard, Bell, Shield, Zap, Layout, FileText,
   History, Bookmark, Star, Crown, Briefcase, Copy, CheckCircle2,
-  Wallet, ArrowUpRight, ArrowDownLeft, Coins, BadgeCheck, Ticket, Medal, UserPlus, Gem, UserCog
+  Wallet, ArrowUpRight, ArrowDownLeft, Coins, BadgeCheck, Ticket, Medal, UserPlus, Gem, UserCog,
+  Lock, Globe, Trash2, Smartphone, Mail, Camera, Loader2, Upload
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "../src/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { supabase } from '../src/lib/supabase';
+import { toast } from "sonner";
 
 export const ProfileFeature = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [expertInfo, setExpertInfo] = React.useState<any>(null);
+  const [uploading, setUploading] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     const saved = localStorage.getItem('expertProfileData');
@@ -29,6 +35,67 @@ export const ProfileFeature = () => {
       }
     }
   }, []);
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploading(true);
+      if (!event.target.files || event.target.files.length === 0) {
+        return;
+      }
+
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Upload to Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) {
+          if (uploadError.message.includes('Bucket not found')) {
+              toast.error('Chưa cấu hình Storage (Bucket not found). Vui lòng liên hệ Admin.');
+              setUploading(false);
+              return;
+          }
+          throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile in DB
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user?.id);
+
+      if (updateError) throw updateError;
+
+      // Update auth metadata (triggers useAuth update)
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl }
+      });
+
+      if (authError) throw authError;
+
+      toast.success('Cập nhật ảnh đại diện thành công!');
+      
+      // Force refresh user data or let useAuth handle it
+      // Note: useAuth might need a refresh mechanism or it updates automatically on auth state change
+      
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Lỗi khi cập nhật ảnh đại diện');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   // Mock data for the profile
   const profileData = {
@@ -73,13 +140,17 @@ export const ProfileFeature = () => {
 
   const accountItems = [
     { id: 'subscription', label: "Gói dịch vụ", icon: <Crown className="h-5 w-5 text-yellow-500" />, route: '/subscription', desc: "Nâng cấp và quản lý thanh toán" },
-    { id: 'settings', label: "Cài đặt", icon: <Settings className="h-5 w-5 text-slate-500" />, route: '/settings', desc: "Tùy chỉnh giao diện và ứng dụng" },
-    { id: 'notifications', label: "Thông báo", icon: <Bell className="h-5 w-5 text-red-500" />, route: '/notifications', desc: "Quản lý thông báo nhận được" },
-    { id: 'security', label: "Quyền riêng tư & Bảo mật", icon: <Shield className="h-5 w-5 text-green-500" />, route: '/privacy', desc: "Bảo vệ tài khoản của bạn" },
   ];
 
   return (
     <div className="h-full w-full bg-background pb-24 overflow-y-auto">
+      <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept="image/*"
+          onChange={handleAvatarUpload}
+      />
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 h-14 px-4 border-b border-border flex items-center justify-between">
         <h1 className="text-lg font-semibold text-foreground">Hồ sơ cá nhân</h1>
@@ -92,10 +163,23 @@ export const ProfileFeature = () => {
         {/* Compact Profile Header */}
         <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl border bg-card text-card-foreground shadow-sm">
             <div className="flex items-center gap-4 flex-1">
-                <Avatar className="h-16 w-16 border-2 border-background ring-2 ring-border/20">
-                    <AvatarImage src={profileData.avatar} />
-                    <AvatarFallback>LC</AvatarFallback>
-                </Avatar>
+                <div className="relative group cursor-pointer" onClick={() => !uploading && fileInputRef.current?.click()}>
+                    <Avatar className={cn(
+                        "h-16 w-16 border-2 border-background ring-2 ring-border/20 transition-opacity",
+                        uploading && "opacity-80"
+                    )}>
+                        <AvatarImage src={profileData.avatar} className={uploading ? "opacity-50" : ""} />
+                        <AvatarFallback>LC</AvatarFallback>
+                    </Avatar>
+                    {uploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/20 rounded-full z-10">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full z-10">
+                        <Camera className="h-6 w-6 text-white" />
+                    </div>
+                </div>
                 <div>
                     <div className="flex items-center gap-2">
                         <h2 className="font-bold text-lg text-foreground flex items-center gap-1">
@@ -360,6 +444,61 @@ export const ProfileFeature = () => {
                             </div>
                         </div>
                     </div>
+
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="settings" className="border-b-0">
+                            <AccordionTrigger className="hover:no-underline py-3 px-3 hover:bg-secondary/40 data-[state=open]:bg-secondary/40 group [&[data-state=open]>div>svg]:rotate-90">
+                                <div className="flex items-center gap-3 w-full">
+                                    <div className="p-2 rounded-md bg-secondary/50 group-hover:bg-background transition-colors">
+                                        <Settings className="h-4 w-4 text-slate-500" />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <div className="text-sm font-medium">Cài đặt</div>
+                                    </div>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-0 border-t border-border/50">
+                                <div className="divide-y divide-border/50 bg-secondary/10">
+                                    <div 
+                                        onClick={() => !uploading && fileInputRef.current?.click()} 
+                                        className={`flex items-center gap-3 p-3 pl-12 hover:bg-secondary/60 cursor-pointer transition-colors group/item ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+                                    >
+                                        <div className="relative">
+                                            <Camera className="h-4 w-4 text-muted-foreground group-hover/item:text-foreground" />
+                                            {uploading && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-full">
+                                                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-sm text-muted-foreground group-hover/item:text-foreground">
+                                            {uploading ? 'Đang cập nhật...' : 'Cập nhật ảnh đại diện'}
+                                        </span>
+                                    </div>
+                                    <div onClick={() => navigate('/notifications')} className="flex items-center gap-3 p-3 pl-12 hover:bg-secondary/60 cursor-pointer transition-colors group/item">
+                                        <Bell className="h-4 w-4 text-muted-foreground group-hover/item:text-foreground" />
+                                        <span className="text-sm text-muted-foreground group-hover/item:text-foreground">Thông báo</span>
+                                    </div>
+                                    <div onClick={() => navigate('/privacy')} className="flex items-center gap-3 p-3 pl-12 hover:bg-secondary/60 cursor-pointer transition-colors group/item">
+                                        <Shield className="h-4 w-4 text-muted-foreground group-hover/item:text-foreground" />
+                                        <span className="text-sm text-muted-foreground group-hover/item:text-foreground">Quyền riêng tư & Bảo mật</span>
+                                    </div>
+                                    <div onClick={() => navigate('/settings/password')} className="flex items-center gap-3 p-3 pl-12 hover:bg-secondary/60 cursor-pointer transition-colors group/item">
+                                        <Lock className="h-4 w-4 text-muted-foreground group-hover/item:text-foreground" />
+                                        <span className="text-sm text-muted-foreground group-hover/item:text-foreground">Đổi mật khẩu</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 p-3 pl-12 hover:bg-secondary/60 cursor-pointer transition-colors group/item">
+                                        <Globe className="h-4 w-4 text-muted-foreground group-hover/item:text-foreground" />
+                                        <span className="text-sm text-muted-foreground group-hover/item:text-foreground">Ngôn ngữ: Tiếng Việt</span>
+                                    </div>
+                                    <div onClick={() => navigate('/settings/delete-account')} className="flex items-center gap-3 p-3 pl-12 hover:bg-red-50 dark:hover:bg-red-900/10 cursor-pointer transition-colors text-red-600/80 hover:text-red-600 dark:text-red-400/80 dark:hover:text-red-400">
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="text-sm">Xóa tài khoản</span>
+                                    </div>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                     
                     <div 
                         onClick={() => navigate('/help')}

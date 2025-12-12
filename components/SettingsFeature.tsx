@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTheme } from "next-themes";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -16,21 +16,83 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Moon, Sun, Monitor, Palette, Bell, User, Shield, ArrowLeft, 
   Cpu, CreditCard, Globe, Lock, Key, Smartphone, Zap, Check, 
-  LogOut, AlertCircle, ChevronRight, Copy, Eye, EyeOff
+  LogOut, AlertCircle, ChevronRight, Copy, Eye, EyeOff, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAuth } from "../src/hooks/useAuth";
+import { supabase } from "../src/lib/supabase";
 
 export const SettingsFeature: React.FC = () => {
+  const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [mounted, setMounted] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("general");
   const [apiKeyVisible, setApiKeyVisible] = React.useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+        setUploading(true);
+        if (!event.target.files || event.target.files.length === 0) {
+            return;
+        }
+
+        const file = event.target.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user?.id}-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        // Upload to Storage
+        const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, file);
+
+        if (uploadError) {
+             if (uploadError.message.includes('Bucket not found')) {
+                 toast.error('Chưa cấu hình Storage (Bucket not found). Vui lòng liên hệ Admin.');
+                 setUploading(false);
+                 return;
+             }
+             throw uploadError;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+
+        // Update profile in DB
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ avatar_url: publicUrl })
+            .eq('id', user?.id);
+
+        if (updateError) throw updateError;
+
+        // Update auth metadata (triggers useAuth update)
+        const { error: authError } = await supabase.auth.updateUser({
+            data: { avatar_url: publicUrl }
+        });
+
+        if (authError) throw authError;
+
+        toast.success('Cập nhật ảnh đại diện thành công!');
+    } catch (error: any) {
+        console.error('Error uploading avatar:', error);
+        toast.error('Lỗi khi cập nhật ảnh đại diện');
+    } finally {
+        setUploading(false);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }
+  };
 
   const themes = [
     { id: 'default', name: 'Minimal', color: 'bg-gray-100 dark:bg-zinc-800' },
@@ -173,10 +235,25 @@ export const SettingsFeature: React.FC = () => {
                             <div className="flex flex-col md:flex-row items-start gap-6">
                                 <div className="flex flex-col items-center gap-3">
                                     <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
-                                        <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Locaith" />
-                                        <AvatarFallback>LC</AvatarFallback>
+                                        <AvatarImage src={user?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Locaith"} />
+                                        <AvatarFallback>{user?.full_name?.charAt(0) || 'U'}</AvatarFallback>
                                     </Avatar>
-                                    <Button variant="outline" size="sm">Thay đổi ảnh</Button>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        onChange={handleAvatarUpload}
+                                    />
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploading}
+                                    >
+                                        {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                        {uploading ? 'Đang tải...' : 'Thay đổi ảnh'}
+                                    </Button>
                                 </div>
                                 <div className="flex-1 w-full space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

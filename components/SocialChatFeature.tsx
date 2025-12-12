@@ -41,13 +41,18 @@ import {
   UserCheck,
   UserMinus,
   Mic,
-  Cake
+  Cake,
+  Timer,
+  HelpCircle,
+  LayoutList,
+  Camera
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { cleanUrl } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -90,6 +95,9 @@ interface Contact {
   status: 'accepted' | 'pending';
   is_pinned?: boolean;
   muted_until?: number;
+  memberAvatars?: string[];
+  totalMembers?: number;
+  members?: any[]; // Store full member info for group chat
 }
 
 interface MessageReaction {
@@ -169,11 +177,18 @@ export const SocialChatFeature = () => {
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  
+  // Create Group Dialog States
+  const [createGroupSearchQuery, setCreateGroupSearchQuery] = useState('');
+  const [groupAvatarFile, setGroupAvatarFile] = useState<File | null>(null);
+  const [groupAvatarPreview, setGroupAvatarPreview] = useState<string | null>(null);
+  const groupAvatarInputRef = useRef<HTMLInputElement>(null);
 
   // Realtime States
   const [typingUsers, setTypingUsers] = useState<Record<string, 'desktop' | 'mobile' | null>>({});
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [failedMessageIds, setFailedMessageIds] = useState<Set<string>>(new Set());
   
   // Input Action States
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -184,6 +199,70 @@ export const SocialChatFeature = () => {
   const [selectedContactToShare, setSelectedContactToShare] = useState<string | null>(null);
   const [messagePriority, setMessagePriority] = useState<'normal' | 'important' | 'urgent'>('normal');
 
+  // Admin Role State
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const groupAvatarUpdateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleGroupAvatarUpdate = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !selectedContactId) return;
+      
+      try {
+          // Upload to avatars bucket
+          const fileExt = file.name.split('.').pop();
+          const fileName = `group-avatars/${selectedContactId}/${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+              .from('avatars')
+              .upload(fileName, file);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+              .from('avatars')
+              .getPublicUrl(fileName);
+
+          // Update group in DB
+          const { error: updateError } = await supabase
+              .from('groups')
+              .update({ avatar_url: publicUrl })
+              .eq('id', selectedContactId);
+
+          if (updateError) throw updateError;
+          
+          toast.success('Đã cập nhật ảnh nhóm');
+          
+          // Optimistic update
+          setContacts(prev => prev.map(c => 
+              c.id === selectedContactId 
+                  ? { ...c, profile: { ...c.profile, avatar_url: publicUrl } } 
+                  : c
+          ));
+          
+      } catch (error: any) {
+          console.error('Error updating group avatar:', error);
+          toast.error('Lỗi khi cập nhật ảnh nhóm');
+      }
+  };
+
+  // --- Check Group Admin Role ---
+  useEffect(() => {
+    const selectedContact = contacts.find(c => c.id === selectedContactId);
+    if (selectedContactId && selectedContact?.profile.role === 'Group' && user) {
+        supabase
+            .from('group_members')
+            .select('role')
+            .eq('group_id', selectedContactId)
+            .eq('user_id', user.id)
+            .single()
+            .then(({ data }) => setIsAdmin(data?.role === 'admin'))
+            .catch(() => setIsAdmin(false));
+    } else {
+        setIsAdmin(false);
+    }
+  }, [selectedContactId, user, contacts]);
+
   const stickers = [
     "👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "🔥", 
     "👋", "🙏", "🤝", "💪", "🧠", "💡", "🚀", "💯"
@@ -192,12 +271,6 @@ export const SocialChatFeature = () => {
   const contactsRef = useRef<Contact[]>([]); // Keep track of contacts for event listeners
   const selectedContactIdRef = useRef<string | null>(null);
   const activeChannelRef = useRef<any>(null);
-
-  // Helper to clean URLs
-  const cleanUrl = (url: string | undefined) => {
-    if (!url) return undefined;
-    return url.trim();
-  };
 
   // Handle Reactions
   const handleReaction = async (messageId: string, emoji: string) => {
@@ -325,10 +398,38 @@ export const SocialChatFeature = () => {
 
       if (contactsError) throw contactsError;
 
-      // 2. Fetch groups
-      const { data: groupsData, error: groupsError } = await supabase
-          .from('groups')
-          .select('*');
+      // 2. Fetch groups (Only those the user is a member of)
+      let groupsData: any[] = [];
+      let groupsError = null;
+
+      // First find group IDs where user is member
+      const { data: myMemberships, error: membershipError } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', user.id);
+          
+      if (membershipError) {
+          console.error('Error fetching memberships:', membershipError);
+      } else if (myMemberships && myMemberships.length > 0) {
+          const myGroupIds = myMemberships.map((m: any) => m.group_id);
+          
+          const result = await supabase
+              .from('groups')
+              .select(`
+                *,
+                group_members (
+                    user_id,
+                    profiles:user_id (
+                        full_name,
+                        avatar_url
+                    )
+                )
+              `)
+              .in('id', myGroupIds);
+              
+          groupsData = result.data || [];
+          groupsError = result.error;
+      }
 
       // 3. Fetch unread counts (DM) via RPC
       const { data: unreadData, error: unreadError } = await supabase.rpc('get_dm_unread_counts');
@@ -387,6 +488,13 @@ export const SocialChatFeature = () => {
                // Use RPC result for unread count
                let unread = groupUnreadMap[group.id] || 0;
 
+               // Process members for avatar grid
+               const members = group.group_members || [];
+               const memberAvatars = members
+                   .map((m: any) => m.profiles?.avatar_url)
+                   .filter((url: any) => !!url)
+                   .slice(0, 4);
+
                return {
                    id: group.id,
                    profile: {
@@ -398,7 +506,11 @@ export const SocialChatFeature = () => {
                        last_seen: new Date().toISOString()
                    },
                    unreadCount: unread,
-                   status: 'accepted'
+                   status: 'accepted',
+                   memberAvatars: memberAvatars,
+                   totalMembers: members.length,
+                   lastMessageTime: group.created_at, // Fallback to creation time for sorting
+                   members: members // Store members for avatar lookup
                };
            });
 
@@ -542,7 +654,10 @@ export const SocialChatFeature = () => {
             table: 'group_members',
             filter: `user_id=eq.${user?.id}`
         }, () => {
-            fetchContacts();
+            // Delay fetch to allow DB propagation/consistency
+            setTimeout(() => {
+                fetchContacts();
+            }, 2000);
         })
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -551,16 +666,105 @@ export const SocialChatFeature = () => {
         }, () => {
              // We can't easily filter groups by membership here without complex RLS or ID list, 
              // but fetchContacts will filter them.
-             fetchContacts();
+             setTimeout(() => {
+                fetchContacts();
+             }, 2000);
         })
         .subscribe();
         
+    // Subscribe to profile changes (avatars, status, etc.)
+    const profileChannel = supabase.channel('public:profiles')
+        .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'profiles' 
+        }, (payload) => {
+            const updatedProfile = payload.new as Profile;
+            
+            // Update contacts list if the updated profile is in our contacts
+            setContacts(prev => prev.map(contact => {
+                // Check if this contact corresponds to the updated profile
+                // Note: contact.id is the contact_id (user_id of the contact)
+                if (contact.id === updatedProfile.id) { 
+                    return {
+                        ...contact,
+                        profile: {
+                            ...contact.profile,
+                            ...updatedProfile
+                        }
+                    };
+                }
+                return contact;
+            }));
+
+            // Also update search results if we are searching
+            setSearchResults(prev => prev.map(p => p.id === updatedProfile.id ? { ...p, ...updatedProfile } : p));
+        })
+        .subscribe();
+
     return () => { 
         supabase.removeChannel(channel); 
         supabase.removeChannel(messageChannel);
         supabase.removeChannel(groupChannel);
+        supabase.removeChannel(profileChannel);
     };
   }, [user, fetchContacts]);
+
+  // --- Group Message Realtime Subscription ---
+  useEffect(() => {
+      if (!user) return;
+      
+      const groupContacts = contacts.filter(c => c.profile.role === 'Group');
+      const groupIds = groupContacts.map(c => c.id).sort();
+          
+      if (groupIds.length === 0) return;
+      
+      const channels: ReturnType<typeof supabase.channel>[] = [];
+      
+      groupIds.forEach(groupId => {
+          const channel = supabase.channel(`group_msg:${groupId}`)
+              .on('postgres_changes', {
+                  event: 'INSERT',
+                  schema: 'public',
+                  table: 'messages',
+                  filter: `group_id=eq.${groupId}`
+              }, (payload) => {
+                  const newMsg = payload.new as Message;
+                  if (newMsg.sender_id === user.id) return; 
+
+                  setContacts(prev => {
+                      const idx = prev.findIndex(c => c.id === groupId);
+                      if (idx === -1) return prev;
+                      
+                      const contact = prev[idx];
+                      const updatedContact = {
+                          ...contact,
+                          lastMessage: newMsg.type === 'text' ? newMsg.content : `[${newMsg.type}]`,
+                          lastMessageTime: newMsg.created_at,
+                          unreadCount: (selectedContactIdRef.current !== groupId) ? (contact.unreadCount || 0) + 1 : 0
+                      };
+                      
+                      const newList = [...prev];
+                      newList.splice(idx, 1);
+                      newList.unshift(updatedContact);
+                      return newList;
+                  });
+                  
+                  if (selectedContactIdRef.current !== groupId) {
+                       setUnreadCount(prev => prev + 1);
+                  }
+              })
+              .subscribe();
+          channels.push(channel);
+      });
+
+      return () => {
+          channels.forEach(ch => supabase.removeChannel(ch));
+      };
+      
+      // Only re-run when group IDs change
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, JSON.stringify(contacts.filter(c => c.profile.role === 'Group').map(c => c.id).sort())]);
 
   // Sync contacts when global unread count changes - REMOVED to prevent infinite loop
   // useEffect(() => {
@@ -1087,6 +1291,24 @@ export const SocialChatFeature = () => {
         setMessages(prev => [...prev, tempMsg]);
         scrollToBottom();
 
+        // Optimistic Contact List Update (Move to Top)
+        setContacts(prev => {
+            const idx = prev.findIndex(c => c.id === selectedContactId);
+            if (idx === -1) return prev;
+            
+            const contact = prev[idx];
+            const updatedContact = {
+                ...contact,
+                lastMessage: type === 'image' ? 'Gửi một ảnh' : (type === 'file' ? 'Gửi một tập tin' : text),
+                lastMessageTime: new Date().toISOString()
+            };
+            
+            const newList = [...prev];
+            newList.splice(idx, 1);
+            newList.unshift(updatedContact);
+            return newList;
+        });
+
         const { data: sentMsg, error } = await supabase
             .from('messages')
             .insert(msgPayload)
@@ -1115,6 +1337,7 @@ export const SocialChatFeature = () => {
         if (type === 'text') setMessagePriority('normal');
     } catch (err) {
         console.error('Failed to send message:', err);
+        setFailedMessageIds(prev => new Set(prev).add(tempId));
         toast.error('Gửi tin nhắn thất bại');
     }
   };
@@ -1267,31 +1490,76 @@ export const SocialChatFeature = () => {
       }
   };
 
+  const handleGroupAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          if (file.size > 5 * 1024 * 1024) {
+              toast.error('Ảnh quá lớn (tối đa 5MB)');
+              return;
+          }
+          setGroupAvatarFile(file);
+          const objectUrl = URL.createObjectURL(file);
+          setGroupAvatarPreview(objectUrl);
+      }
+  };
+
   const handleCreateGroup = async () => {
         if (!groupName.trim() || selectedFriends.length === 0 || !user) return;
         
-        console.log("Creating group with user:", user.id);
         setIsCreatingGroup(true);
         try {
-            // 1. Create Group
+            let avatarUrl = null;
+
+            // 1. Upload Avatar if selected
+            if (groupAvatarFile) {
+                try {
+                    const fileExt = groupAvatarFile.name.split('.').pop();
+                    const fileName = `group-avatars/${user.id}/${Date.now()}.${fileExt}`;
+                    
+                    const { error: uploadError } = await supabase.storage
+                        .from('avatars')
+                        .upload(fileName, groupAvatarFile);
+
+                    if (uploadError) {
+                         console.error('Error uploading avatar:', uploadError);
+                         // Don't block group creation on avatar upload failure
+                         // Just warn the user
+                         let msg = 'Không thể tải ảnh nhóm lên.';
+                         if (uploadError.message.includes('Bucket not found')) {
+                             msg = 'Hệ thống chưa cấu hình Storage để lưu ảnh.';
+                         } else if (uploadError.message.includes('row-level security')) {
+                             msg = 'Bạn không có quyền tải ảnh lên.';
+                         }
+                         toast.warning(`${msg} Nhóm sẽ được tạo không có ảnh.`);
+                    } else {
+                        const { data: { publicUrl } } = supabase.storage
+                            .from('avatars')
+                            .getPublicUrl(fileName);
+                        
+                        avatarUrl = publicUrl;
+                    }
+                } catch (uploadErr) {
+                    console.error('Error in avatar upload block:', uploadErr);
+                    toast.warning('Có lỗi khi xử lý ảnh. Nhóm sẽ được tạo không có ảnh.');
+                    // Continue creating group without avatar
+                }
+            }
+
+            // 2. Create Group
             const { data: groupData, error: groupError } = await supabase
                 .from('groups')
                 .insert({
                     name: groupName,
-                    created_by: user.id
+                    created_by: user.id,
+                    avatar_url: avatarUrl
                 })
                 .select()
                 .single();
                 
-            if (groupError) {
-                console.error('Group creation error (Insert):', groupError);
-                throw groupError;
-            }
-          if (!groupData) {
-              throw new Error('Không thể tạo nhóm (không nhận được dữ liệu trả về). Vui lòng kiểm tra lại quyền truy cập.');
-          }
+            if (groupError) throw groupError;
+            if (!groupData) throw new Error('Không thể tạo nhóm');
           
-          // 2. Add Members (Creator + Selected Friends)
+          // 3. Add Members (Creator + Selected Friends)
           const members = [
               { group_id: groupData.id, user_id: user.id, role: 'admin' },
               ...selectedFriends.map(friendId => ({
@@ -1311,8 +1579,21 @@ export const SocialChatFeature = () => {
           setIsCreateGroupOpen(false);
           setGroupName('');
           setSelectedFriends([]);
+          setGroupAvatarFile(null);
+          setGroupAvatarPreview(null);
+          setCreateGroupSearchQuery('');
           
           // Add to local state immediately
+           // Try to get member avatars for grid
+           const memberAvatars: string[] = [];
+           if (user.user_metadata?.avatar_url) memberAvatars.push(user.user_metadata.avatar_url);
+           
+           contacts.forEach(c => {
+               if (selectedFriends.includes(c.id) && c.profile.avatar_url) {
+                   memberAvatars.push(c.profile.avatar_url);
+               }
+           });
+
            const newGroup: Contact = {
                  id: groupData.id,
                  profile: {
@@ -1324,17 +1605,18 @@ export const SocialChatFeature = () => {
                      last_seen: new Date().toISOString()
                  },
                  unreadCount: 0,
-                 status: 'accepted'
+                 status: 'accepted',
+                 memberAvatars: memberAvatars.slice(0, 4),
+                 totalMembers: members.length,
+                 lastMessageTime: new Date().toISOString()
            };
            setContacts(prev => [newGroup, ...prev]);
            setSelectedContactId(newGroup.id);
-           
-           // Sync with server to ensure consistency
-           fetchContacts();
+           setMainView('chat'); 
           
-      } catch (err) {
+      } catch (err: any) {
           console.error('Error creating group:', err);
-          toast.error('Lỗi khi tạo nhóm');
+          toast.error(`Lỗi: ${err.message || 'Không thể tạo nhóm'}`);
       } finally {
           setIsCreatingGroup(false);
       }
@@ -1358,20 +1640,25 @@ export const SocialChatFeature = () => {
           const filePath = `${user.id}/${fileName}`;
 
           const { error: uploadError } = await supabase.storage
-              .from('chat-uploads')
+              .from('avatars')
               .upload(filePath, file);
 
-          if (uploadError) throw uploadError;
+          if (uploadError) {
+              if (uploadError.message.includes('Bucket not found')) {
+                  throw new Error('Hệ thống chưa cấu hình Storage (Bucket not found). Vui lòng liên hệ Admin.');
+              }
+              throw uploadError;
+          }
 
           const { data: { publicUrl } } = supabase.storage
-              .from('chat-uploads')
+              .from('avatars')
               .getPublicUrl(filePath);
 
           await handleSendMessage(file.name, type, publicUrl);
           toast.success('Đã gửi file thành công');
-      } catch (error) {
+      } catch (error: any) {
           console.error('Error uploading file:', error);
-          toast.error('Lỗi khi tải lên file');
+          toast.error(error.message || 'Lỗi khi tải lên file');
       }
   };
 
@@ -1474,6 +1761,13 @@ export const SocialChatFeature = () => {
 
   const selectedContact = contacts.find(c => c.id === selectedContactId);
 
+  // --- 4. Filtering & Sorting ---
+  // Sort logic moved to inside render to avoid infinite loop or unnecessary computations
+  // Actually, sorting should be done on filtered list before mapping.
+  // We will sort in the JSX map or here. Let's do it here but cleanly.
+  
+  // NOTE: filteredContacts is used in the sidebar list.
+
   const filteredContacts = contacts.filter(contact => {
       if (!contact || !contact.profile) return false; // Safety check
       
@@ -1490,22 +1784,8 @@ export const SocialChatFeature = () => {
           if (!nameMatch && !messageMatch) return false;
       }
       return true;
-  }).sort((a, b) => {
-      // Pinned contacts first
-      const isAPinned = pinnedContacts.has(a.id);
-      const isBPinned = pinnedContacts.has(b.id);
-      if (isAPinned && !isBPinned) return -1;
-      if (!isAPinned && isBPinned) return 1;
-      
-      // Sort by last message time (newest first)
-      if (a.lastMessageTime && b.lastMessageTime) {
-          return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
-      }
-      if (a.lastMessageTime) return -1;
-      if (b.lastMessageTime) return 1;
+  }); // Removed sort here to apply it in render or just use default order which is usually time-based from fetch
 
-      return 0;
-  });
 
   const togglePin = async (contactId: string) => {
       const isPinned = pinnedContacts.has(contactId);
@@ -1571,6 +1851,87 @@ export const SocialChatFeature = () => {
       return Date.now() < expiry;
   };
 
+  const handleLeaveGroup = async () => {
+      if (!selectedContactId || !user) return;
+      if (!confirm('Bạn có chắc chắn muốn rời nhóm này?')) return;
+
+      try {
+          const { error } = await supabase
+              .from('group_members')
+              .delete()
+              .eq('group_id', selectedContactId)
+              .eq('user_id', user.id);
+              
+          if (error) throw error;
+          
+          toast.success('Đã rời nhóm');
+          
+          // Remove from local state
+          setContacts(prev => prev.filter(c => c.id !== selectedContactId));
+          setSelectedContactId(null);
+          setShowRightSidebar(false);
+          setMainView('chat'); 
+      } catch (err) {
+          console.error(err);
+          toast.error('Lỗi khi rời nhóm');
+      }
+  };
+
+  const handleDeleteChatHistory = async () => {
+       if (!selectedContactId || !user) return;
+       
+       try {
+           // Check if user is admin
+           const { data: memberData, error: memberError } = await supabase
+               .from('group_members')
+               .select('role')
+               .eq('group_id', selectedContactId)
+               .eq('user_id', user.id)
+               .single();
+               
+           if (memberError) {
+               console.error('Error fetching member role:', memberError);
+               toast.error('Không thể xác thực quyền hạn');
+               return;
+           }
+           
+           const isUserAdmin = memberData.role === 'admin';
+           
+           if (isUserAdmin) {
+               if (!confirm('CẢNH BÁO: Bạn đang giải tán nhóm này. Tất cả tin nhắn và dữ liệu nhóm sẽ bị xóa vĩnh viễn đối với TẤT CẢ thành viên. Hành động này không thể hoàn tác.\n\nBạn có chắc chắn muốn tiếp tục?')) {
+                   return;
+               }
+               
+               // Delete Group
+               const { error: deleteError } = await supabase
+                   .from('groups')
+                   .delete()
+                   .eq('id', selectedContactId);
+                   
+               if (deleteError) throw deleteError;
+               
+               toast.success('Đã giải tán nhóm thành công');
+           } else {
+               toast.error('Chỉ quản trị viên nhóm mới có quyền giải tán nhóm.');
+               return;
+           }
+           
+           // Cleanup Local State
+           setContacts(prev => prev.filter(c => c.id !== selectedContactId));
+           setSelectedContactId(null);
+           setShowRightSidebar(false);
+           setMainView('chat');
+           
+       } catch (err: any) {
+           console.error('Error deleting group:', err);
+           toast.error(`Lỗi: ${err.message || 'Không thể xóa nhóm'}`);
+       }
+  };
+
+  const handleReportGroup = async () => {
+      toast.info('Đã gửi báo cáo');
+  };
+
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-background overflow-hidden relative">
       <div className="flex-1 flex w-full overflow-hidden relative">
@@ -1621,7 +1982,7 @@ export const SocialChatFeature = () => {
                             {searchResults.map(profile => (
                                 <div key={profile.id} className="flex items-center justify-between p-2 hover:bg-secondary rounded-lg">
                                     <div className="flex items-center gap-3">
-                                        <Avatar>
+                                        <Avatar className="h-10 w-10 shrink-0">
                                             <AvatarImage src={cleanUrl(profile.avatar_url)} />
                                             <AvatarFallback>{profile.full_name?.charAt(0)}</AvatarFallback>
                                         </Avatar>
@@ -1742,7 +2103,7 @@ export const SocialChatFeature = () => {
                 value="all" 
                 className="data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-0 pb-2 text-xs font-semibold text-muted-foreground flex items-center gap-1"
               >
-                Tất cả
+                Hội thoại
                 {unreadCount > 0 && (
                     <Badge variant="destructive" className="h-5 min-w-5 p-0 flex items-center justify-center text-[10px] rounded-full px-1">
                         {unreadCount > 99 ? '99+' : unreadCount}
@@ -1778,8 +2139,17 @@ export const SocialChatFeature = () => {
                         )}
                     </div>
                 ) : (
-                    filteredContacts.map((contact) => (
-                    <div 
+                      // Sort contacts by last message time
+                      [...filteredContacts].sort((a, b) => {
+                          const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+                          const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+                          
+                          // If both have times, sort by time desc
+                          if (timeA !== timeB) return timeB - timeA;
+                          
+                          return 0; 
+                      }).map((contact) => (
+                      <div 
                         key={contact.id}
                         onClick={() => {
                             setSelectedContactId(contact.id);
@@ -1790,7 +2160,7 @@ export const SocialChatFeature = () => {
                         }`}
                     >
                         <div className="relative">
-                        <Avatar className="h-12 w-12 border border-border">
+                        <Avatar className="h-12 w-12 border border-border shrink-0">
                             <AvatarImage src={cleanUrl(contact.profile.avatar_url)} />
                             <AvatarFallback className="bg-blue-100 text-blue-600 font-bold">{contact.profile.full_name?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
@@ -1867,7 +2237,7 @@ export const SocialChatFeature = () => {
                         onClick={() => { setMainView('chat'); setActiveTab('all'); }}
                         className="data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-0 pb-2 text-xs font-semibold text-muted-foreground flex items-center gap-1"
                       >
-                        Tất cả
+                        Hội thoại
                         {unreadCount > 0 && (
                         <Badge variant="destructive" className="h-5 min-w-5 p-0 flex items-center justify-center text-[10px] rounded-full px-1">
                             {unreadCount > 99 ? '99+' : unreadCount}
@@ -1900,10 +2270,10 @@ export const SocialChatFeature = () => {
                             return (
                              <div key={req.id} className="flex items-center justify-between p-3 hover:bg-secondary/50 rounded-lg">
                                  <div className="flex items-center gap-2">
-                                     <Avatar className="h-8 w-8">
-                                         <AvatarImage src={cleanUrl(sender.avatar_url)} />
-                                         <AvatarFallback>{sender.full_name?.charAt(0) || '?'}</AvatarFallback>
-                                     </Avatar>
+                                     <Avatar className="h-8 w-8 shrink-0">
+                                        <AvatarImage src={cleanUrl(sender.avatar_url)} />
+                                        <AvatarFallback>{sender.full_name?.charAt(0) || '?'}</AvatarFallback>
+                                    </Avatar>
                                      <div className="text-sm font-medium truncate max-w-[120px]">
                                         {sender.full_name}
                                     </div>
@@ -1921,12 +2291,20 @@ export const SocialChatFeature = () => {
                          <Separator className="my-2" />
                      </div>
                  )}
-                 <Button variant="ghost" className="w-full justify-start gap-3 bg-blue-50 text-blue-600 font-bold">
-                     <ContactIcon className="h-4 w-4" /> Danh sách bạn bè
-                 </Button>
-                 <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground font-medium">
-                     <Users className="h-4 w-4" /> Nhóm và cộng đồng
-                 </Button>
+                 <Button 
+                    variant="ghost" 
+                    className={`w-full justify-start gap-3 ${friendTab === 'friends' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-muted-foreground font-medium'}`}
+                    onClick={() => setFriendTab('friends')}
+                >
+                    <ContactIcon className="h-4 w-4" /> Danh sách bạn bè
+                </Button>
+                <Button 
+                    variant="ghost" 
+                    className={`w-full justify-start gap-3 ${friendTab === 'groups' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-muted-foreground font-medium'}`}
+                    onClick={() => setFriendTab('groups')}
+                >
+                    <Users className="h-4 w-4" /> Nhóm và cộng đồng
+                </Button>
                  <Separator className="my-2" />
                  <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground font-medium">
                      <UserPlus className="h-4 w-4" /> Lời mời kết bạn
@@ -1941,10 +2319,6 @@ export const SocialChatFeature = () => {
         {/* User Profile Mini */}
         <div className="hidden md:flex p-3 border-t border-border bg-secondary/10 items-center justify-between">
             <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                    <AvatarImage src={cleanUrl(user.user_metadata?.avatar_url)} />
-                    <AvatarFallback>Me</AvatarFallback>
-                </Avatar>
                 <div className="text-xs">
                     <p className="font-bold">{user.user_metadata?.full_name || user.email}</p>
                     <p className="text-green-600">Online</p>
@@ -1974,9 +2348,14 @@ export const SocialChatFeature = () => {
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={() => setMainView(v => v === 'chat' ? 'friends' : 'chat')}
-                                className={mainView === 'friends' ? 'bg-secondary text-blue-600' : ''}
+                                className={`relative overflow-visible ${mainView === 'friends' ? 'bg-secondary text-blue-600' : ''}`}
                             >
                                 <ContactIcon className="h-4 w-4" />
+                                {incomingRequests.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold shadow-sm animate-in zoom-in">
+                                        {incomingRequests.length > 9 ? '9+' : incomingRequests.length}
+                                    </span>
+                                )}
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>Danh bạ</TooltipContent>
@@ -2048,10 +2427,10 @@ export const SocialChatFeature = () => {
                                         {searchResults.map(profile => (
                                             <div key={profile.id} className="flex items-center justify-between p-2 hover:bg-secondary rounded-lg">
                                                 <div className="flex items-center gap-3">
-                                                    <Avatar>
-                                                        <AvatarImage src={cleanUrl(profile.avatar_url)} />
-                                                        <AvatarFallback>{profile.full_name?.charAt(0)}</AvatarFallback>
-                                                    </Avatar>
+                                                    <Avatar className="h-10 w-10 shrink-0">
+                                                       <AvatarImage src={cleanUrl(profile.avatar_url)} />
+                                                       <AvatarFallback>{profile.full_name?.charAt(0)}</AvatarFallback>
+                                                   </Avatar>
                                                     <div>
                                                         <p className="font-medium">{profile.full_name}</p>
                                                         <p className="text-xs text-muted-foreground">{profile.role}</p>
@@ -2154,21 +2533,7 @@ export const SocialChatFeature = () => {
                                </div>
                                )}
                                
-                               {/* Birthdays - Only show in Friends tab */}
-                               {friendTab === 'friends' && (
-                               <div className="flex items-center gap-4 p-4 active:bg-secondary/50 transition-colors cursor-pointer border-b border-border/40">
-                                   <div className="bg-blue-500 rounded-full p-2.5 relative">
-                                       <Cake className="h-6 w-6 text-white" />
-                                       <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>
-                                   </div>
-                                   <div className="flex-1">
-                                       <div className="font-medium text-base flex items-center gap-2">
-                                          Sinh nhật <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                                       </div>
-                                       <div className="text-xs text-muted-foreground mt-0.5 font-normal">Hôm nay là sinh nhật Gia Bảo và 3 người khác</div>
-                                   </div>
-                               </div>
-                               )}
+
                           </div>
 
                           {/* Separator */}
@@ -2246,16 +2611,29 @@ export const SocialChatFeature = () => {
                                                   >
                                                       <div className="flex items-center gap-4">
                                                           <div className="relative">
-                                                              <Avatar className="h-10 w-10 border border-border/50">
+                                                          {contact.profile.role === 'Group' && !contact.profile.avatar_url && contact.memberAvatars && contact.memberAvatars.length > 0 ? (
+                                                              <div className="h-10 w-10 shrink-0 grid grid-cols-2 gap-[1px] rounded-full overflow-hidden bg-secondary border border-border/50">
+                                                                  {contact.memberAvatars.slice(0, 4).map((url, i) => (
+                                                                      <img 
+                                                                          key={i} 
+                                                                          src={cleanUrl(url)} 
+                                                                          alt="" 
+                                                                          className={`w-full h-full object-cover ${(contact.memberAvatars?.length === 1) ? 'col-span-2 row-span-2' : ''} ${(contact.memberAvatars?.length === 2) ? 'row-span-2' : ''} ${(contact.memberAvatars?.length === 3 && i === 0) ? 'col-span-2' : ''}`} 
+                                                                      />
+                                                                  ))}
+                                                              </div>
+                                                          ) : (
+                                                              <Avatar className="h-10 w-10 border border-border/50 shrink-0">
                                                                   <AvatarImage src={cleanUrl(contact.profile.avatar_url)} />
                                                                   <AvatarFallback className="bg-blue-100 text-blue-600 font-bold">{name.charAt(0)}</AvatarFallback>
                                                               </Avatar>
-                                                              {contact.profile.role === 'Group' && (
-                                                                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-zinc-800 rounded-full p-[2px] shadow-sm border border-border/50">
-                                                                     <Users className="h-3.5 w-3.5 text-blue-600 fill-blue-600/10" />
-                                                                  </div>
-                                                              )}
-                                                          </div>
+                                                          )}
+                                                          {contact.profile.role === 'Group' && (
+                                                              <div className="absolute -bottom-1 -right-1 bg-white dark:bg-zinc-800 rounded-full p-[2px] shadow-sm border border-border/50">
+                                                                 <Users className="h-3.5 w-3.5 text-blue-600 fill-blue-600/10" />
+                                                              </div>
+                                                          )}
+                                                      </div>
                                                           <div className="flex flex-col">
                                                               <span className="font-medium text-base text-foreground flex items-center gap-1.5">
                                                                   {name}
@@ -2314,10 +2692,23 @@ export const SocialChatFeature = () => {
                                     <ChevronLeft className="h-6 w-6" />
                                 </Button>
                                 <div className="relative">
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarImage src={cleanUrl(selectedContact.profile.avatar_url)} />
-                                        <AvatarFallback className="bg-blue-100 text-blue-600 font-bold">{selectedContact.profile.full_name?.charAt(0)}</AvatarFallback>
-                                    </Avatar>
+                                    {selectedContact.profile.role === 'Group' && !selectedContact.profile.avatar_url && selectedContact.memberAvatars && selectedContact.memberAvatars.length > 0 ? (
+                                        <div className="h-10 w-10 shrink-0 grid grid-cols-2 gap-[1px] rounded-full overflow-hidden bg-secondary border border-border/50">
+                                            {selectedContact.memberAvatars.slice(0, 4).map((url, i) => (
+                                                <img 
+                                                    key={i} 
+                                                    src={cleanUrl(url)} 
+                                                    alt="" 
+                                                    className={`w-full h-full object-cover ${(selectedContact.memberAvatars?.length === 1) ? 'col-span-2 row-span-2' : ''} ${(selectedContact.memberAvatars?.length === 2) ? 'row-span-2' : ''} ${(selectedContact.memberAvatars?.length === 3 && i === 0) ? 'col-span-2' : ''}`} 
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <Avatar className="h-10 w-10 shrink-0">
+                                            <AvatarImage src={cleanUrl(selectedContact.profile.avatar_url)} />
+                                            <AvatarFallback className="bg-blue-100 text-blue-600 font-bold">{selectedContact.profile.full_name?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                    )}
                                     {selectedContact.profile.role === 'Group' && (
                                         <div className="absolute -bottom-1 -right-1 bg-white dark:bg-zinc-800 rounded-full p-[2px] shadow-sm border border-border/50">
                                             <Users className="h-3 w-3 text-blue-600 fill-blue-600/10" />
@@ -2350,10 +2741,10 @@ export const SocialChatFeature = () => {
                             
                             <div className="flex items-center gap-1">
                                 {/* Mobile Actions */}
-                                <Button variant="ghost" size="icon" className="md:hidden text-blue-600">
+                                <Button variant="ghost" size="icon" className="md:hidden text-blue-600" onClick={() => toast.info('Tính năng gọi thoại đang phát triển')}>
                                     <Phone className="h-6 w-6" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="md:hidden text-blue-600">
+                                <Button variant="ghost" size="icon" className="md:hidden text-blue-600" onClick={() => toast.info('Tính năng gọi video đang phát triển')}>
                                     <Video className="h-6 w-6" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="md:hidden text-blue-600" onClick={() => {
@@ -2379,7 +2770,18 @@ export const SocialChatFeature = () => {
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <Button variant="ghost" size="icon">
+                                                <Button variant="ghost" size="icon" onClick={() => toast.info('Tính năng gọi thoại đang phát triển')}>
+                                                    <Phone className="h-5 w-5 text-muted-foreground" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Gọi thoại</TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="icon" onClick={() => toast.info('Tính năng gọi video đang phát triển')}>
                                                     <Video className="h-5 w-5 text-muted-foreground" />
                                                 </Button>
                                             </TooltipTrigger>
@@ -2464,16 +2866,73 @@ export const SocialChatFeature = () => {
                                 {messages.map((msg, index) => {
                                 const isMe = msg.sender_id === user.id;
                                 const isLastMessage = index === messages.length - 1;
+                                const prevMsg = index > 0 ? messages[index - 1] : null;
+
+                                // Date Separator Logic
+                                let showDateSeparator = false;
+                                let dateSeparatorText = "";
+                                
+                                if (!prevMsg) {
+                                    showDateSeparator = true;
+                                } else {
+                                    const currentDate = new Date(msg.created_at);
+                                    const prevDate = new Date(prevMsg.created_at);
+                                    const diffMs = currentDate.getTime() - prevDate.getTime();
+                                    
+                                    // Different day or > 1 hour gap
+                                    if (currentDate.getDate() !== prevDate.getDate() || 
+                                        currentDate.getMonth() !== prevDate.getMonth() || 
+                                        currentDate.getFullYear() !== prevDate.getFullYear() ||
+                                        diffMs > 60 * 60 * 1000) {
+                                        showDateSeparator = true;
+                                    }
+                                }
+
+                                if (showDateSeparator) {
+                                    const date = new Date(msg.created_at);
+                                    const now = new Date();
+                                    const isToday = date.getDate() === now.getDate() && 
+                                                    date.getMonth() === now.getMonth() && 
+                                                    date.getFullYear() === now.getFullYear();
+                                    
+                                    if (isToday) {
+                                        dateSeparatorText = "Hôm nay";
+                                    } else {
+                                        dateSeparatorText = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')} ${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+                                    }
+                                }
+
+                                // Determine sender info for Avatar
+                                let senderAvatar = selectedContact.profile.avatar_url;
+                                let senderName = selectedContact.profile.full_name;
+                                
+                                if (selectedContact.profile.role === 'Group' && selectedContact.members) {
+                                    const member = selectedContact.members.find((m: any) => m.user_id === msg.sender_id);
+                                    if (member && member.profiles) {
+                                        senderAvatar = member.profiles.avatar_url;
+                                        senderName = member.profiles.full_name;
+                                    }
+                                }
+
+                                const isFailed = failedMessageIds.has(msg.id);
+
                                 return (
+                                    <React.Fragment key={msg.id}>
+                                    {showDateSeparator && (
+                                        <div className="flex justify-center my-4">
+                                            <span className="bg-secondary/50 text-muted-foreground text-[10px] px-2 py-1 rounded-full">
+                                                {dateSeparatorText}
+                                            </span>
+                                        </div>
+                                    )}
                                     <div 
-                                        key={msg.id} 
                                         id={`msg-${msg.id}`}
                                         className={`flex ${isMe ? 'justify-end' : 'justify-start'} gap-3 group`}
                                     >
                                     {!isMe && (
-                                        <Avatar className="h-8 w-8 mt-1">
-                                        <AvatarImage src={cleanUrl(selectedContact.profile.avatar_url)} />
-                                        <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">{selectedContact.profile.full_name?.charAt(0)}</AvatarFallback>
+                                        <Avatar className="h-8 w-8 mt-1 shrink-0">
+                                        <AvatarImage src={cleanUrl(senderAvatar)} />
+                                        <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">{senderName?.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                     )}
                                     
@@ -2539,7 +2998,7 @@ export const SocialChatFeature = () => {
                                     )}
                                     {msg.type === 'contact' && (
                                          <div className="flex items-center gap-3 p-2 bg-secondary/50 rounded-lg border min-w-[200px]">
-                                            <Avatar className="h-10 w-10">
+                                            <Avatar className="h-10 w-10 shrink-0">
                                                 <AvatarFallback><ContactIcon className="h-5 w-5" /></AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1 min-w-0">
@@ -2578,14 +3037,18 @@ export const SocialChatFeature = () => {
                                         </div>
                                     )}
                                     
-                                    <span className="text-[10px] text-muted-foreground mt-1 opacity-70 flex items-center gap-1 justify-end">
+                                    <span className="text-[10px] text-muted-foreground mt-1 opacity-70 flex items-center gap-1 justify-end min-w-[60px]">
                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         {isMe && (
-                                            msg.is_read ? (
-                                                <span title="Đã xem" className="text-blue-500"><Check className="h-3 w-3" /></span>
-                                            ) : (
-                                                <span title="Đã gửi"><Check className="h-3 w-3 text-muted-foreground" /></span>
-                                            )
+                                            <span className="ml-1">
+                                                {isFailed ? (
+                                                    <span className="text-red-500">Chưa gửi tin nhắn</span>
+                                                ) : msg.is_read ? (
+                                                    <span className="text-blue-500">Đã xem</span>
+                                                ) : (
+                                                    <span>Đã gửi</span>
+                                                )}
+                                            </span>
                                         )}
                                     </span>
 
@@ -2613,11 +3076,12 @@ export const SocialChatFeature = () => {
                                     </div>
                                     </div>
                                     </div>
+                                    </React.Fragment>
                                 );
                                 })}
                                 {typingUsers[selectedContactId] && (
                                     <div className="flex justify-start gap-3 animate-in fade-in duration-300">
-                                        <Avatar className="h-8 w-8 mt-1">
+                                        <Avatar className="h-8 w-8 mt-1 shrink-0">
                                             <AvatarImage src={cleanUrl(selectedContact?.profile.avatar_url)} />
                                             <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">{selectedContact?.profile.full_name?.charAt(0)}</AvatarFallback>
                                         </Avatar>
@@ -2722,7 +3186,7 @@ export const SocialChatFeature = () => {
                                                             className="flex items-center gap-2 p-2 hover:bg-secondary cursor-pointer"
                                                             onClick={() => handleContactShare(c.id)}
                                                         >
-                                                            <Avatar className="h-6 w-6">
+                                                            <Avatar className="h-6 w-6 shrink-0">
                                                                 <AvatarImage src={cleanUrl(c.profile.avatar_url)} />
                                                                 <AvatarFallback>{c.profile.full_name?.charAt(0)}</AvatarFallback>
                                                             </Avatar>
@@ -2900,79 +3364,206 @@ export const SocialChatFeature = () => {
                           </div>
 
                           <ScrollArea className="flex-1">
-                            {/* Header Actions */}
-                            <div className="p-4 flex justify-between items-start border-b border-border">
-                               <div 
-                                   className="flex flex-col items-center gap-2 cursor-pointer group w-1/3"
-                                   onClick={() => {
-                                       if (isMuted(selectedContact.id)) {
-                                            setMutedContacts(prev => {
-                                                const newMuted = { ...prev };
-                                                delete newMuted[selectedContact.id];
-                                                return newMuted;
-                                            });
-                                       } else {
-                                           setIsMuteDialogOpen(true);
-                                       }
-                                   }}
-                               >
-                                  <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
-                                      isMuted(selectedContact.id) 
-                                      ? 'bg-red-100 text-red-600' 
-                                      : 'bg-secondary text-muted-foreground group-hover:bg-secondary/80'
-                                  }`}>
-                                    <BellOff className="h-5 w-5" />
-                                  </div>
-                                  <span className={`text-xs text-center font-medium transition-colors ${
-                                      isMuted(selectedContact.id) ? 'text-red-600' : 'text-muted-foreground group-hover:text-foreground'
-                                  }`}>
-                                      {isMuted(selectedContact.id) ? 'Đã tắt' : 'Tắt thông\nbáo'}
-                                  </span>
-                               </div>
-                               <div 
-                                   className="flex flex-col items-center gap-2 cursor-pointer group w-1/3"
-                                   onClick={() => togglePin(selectedContact.id)}
-                               >
-                                  <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
-                                      pinnedContacts.has(selectedContact.id) 
-                                      ? 'bg-blue-100 text-blue-600' 
-                                      : 'bg-secondary text-muted-foreground group-hover:bg-secondary/80'
-                                  }`}>
-                                    <Pin className={`h-5 w-5 ${pinnedContacts.has(selectedContact.id) ? 'fill-blue-600' : ''}`} />
-                                  </div>
-                                  <span className={`text-xs text-center font-medium transition-colors ${
-                                      pinnedContacts.has(selectedContact.id) ? 'text-blue-600' : 'text-muted-foreground group-hover:text-foreground'
-                                  }`}>
-                                      {pinnedContacts.has(selectedContact.id) ? 'Đã ghim' : 'Ghim hội\nthoại'}
-                                  </span>
-                               </div>
-                               <div className="flex flex-col items-center gap-2 cursor-pointer group w-1/3" onClick={() => {
-                                   setIsCreateGroupOpen(true);
-                                   if (selectedContact && selectedContact.profile.role !== 'Group') {
-                                       setSelectedFriends(prev => prev.includes(selectedContact.id) ? prev : [...prev, selectedContact.id]);
-                                   }
-                               }}>
-                                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center group-hover:bg-secondary/80 transition-colors">
-                                    <UserPlus className="h-5 w-5 text-muted-foreground" />
-                                  </div>
-                                  <span className="text-xs text-center font-medium text-muted-foreground group-hover:text-foreground transition-colors">Tạo nhóm<br/>trò chuyện</span>
-                               </div>
-                            </div>
+                            {selectedContact.profile.role === 'Group' ? (
+                                <>
+                                   {/* Group Header */}
+                                   <div className="flex flex-col items-center py-6 border-b border-border bg-gradient-to-b from-secondary/20 to-transparent">
+                                       <div className="w-24 h-24 mb-3 relative rounded-full overflow-hidden border-4 border-background shadow-lg group">
+                                           {selectedContact.profile.avatar_url ? (
+                                               <Avatar className="h-full w-full">
+                                                   <AvatarImage src={cleanUrl(selectedContact.profile.avatar_url)} className="object-cover" />
+                                                   <AvatarFallback>{selectedContact.profile.full_name[0]}</AvatarFallback>
+                                               </Avatar>
+                                           ) : (
+                                                <div className="w-full h-full grid grid-cols-2 gap-0.5 bg-muted">
+                                                   {selectedContact.memberAvatars?.slice(0, 4).map((avatar: string, i: number) => (
+                                                       <img key={i} src={cleanUrl(avatar)} className="w-full h-full object-cover" />
+                                                   ))}
+                                                </div>
+                                           )}
+                                           {isAdmin && (
+                                                <div 
+                                                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+                                                    onClick={() => groupAvatarUpdateInputRef.current?.click()}
+                                                >
+                                                    <Camera className="w-8 h-8 text-white" />
+                                                </div>
+                                           )}
+                                       </div>
+                                       <input 
+                                            type="file" 
+                                            ref={groupAvatarUpdateInputRef} 
+                                            className="hidden" 
+                                            accept="image/*"
+                                            onChange={handleGroupAvatarUpdate}
+                                       />
+                                       <h2 className="text-xl font-bold text-center px-4">{selectedContact.profile.full_name}</h2>
+                                       <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                                           <Users className="w-3 h-3" />
+                                           {selectedContact.totalMembers || 0} thành viên
+                                       </p>
+                                   </div>
 
-                            {/* General Info List */}
-                            <div className="p-4 space-y-4 border-b border-border">
-                                <div 
-                                    className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80"
-                                    onClick={() => setIsAppointmentDialogOpen(true)}
-                                >
-                                    <Clock className="h-5 w-5 text-muted-foreground" />
-                                    <span>Danh sách nhắc hẹn</span>
-                                </div>
-                                <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
-                                    <Users className="h-5 w-5 text-muted-foreground" />
-                                    <span>0 nhóm chung</span>
-                                </div>
-                            </div>
+                                   {/* Group Actions Row */}
+                                   <div className="grid grid-cols-4 gap-2 p-4 border-b border-border">
+                                       <div 
+                                           className="flex flex-col items-center gap-2 cursor-pointer group"
+                                           onClick={() => {
+                                               if (isMuted(selectedContact.id)) {
+                                                    setMutedContacts(prev => {
+                                                        const newMuted = { ...prev };
+                                                        delete newMuted[selectedContact.id];
+                                                        return newMuted;
+                                                    });
+                                               } else {
+                                                   setIsMuteDialogOpen(true);
+                                               }
+                                           }}
+                                       >
+                                          <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
+                                              isMuted(selectedContact.id) 
+                                              ? 'bg-red-100 text-red-600' 
+                                              : 'bg-secondary text-muted-foreground group-hover:bg-secondary/80'
+                                          }`}>
+                                            <BellOff className="h-5 w-5" />
+                                          </div>
+                                          <span className={`text-[10px] text-center font-medium transition-colors ${
+                                              isMuted(selectedContact.id) ? 'text-red-600' : 'text-muted-foreground group-hover:text-foreground'
+                                          }`}>
+                                              {isMuted(selectedContact.id) ? 'Bật thông báo' : 'Tắt thông báo'}
+                                          </span>
+                                       </div>
+                                       <div 
+                                           className="flex flex-col items-center gap-2 cursor-pointer group"
+                                           onClick={() => togglePin(selectedContact.id)}
+                                       >
+                                          <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
+                                              pinnedContacts.has(selectedContact.id) 
+                                              ? 'bg-blue-100 text-blue-600' 
+                                              : 'bg-secondary text-muted-foreground group-hover:bg-secondary/80'
+                                          }`}>
+                                            <Pin className={`h-5 w-5 ${pinnedContacts.has(selectedContact.id) ? 'fill-blue-600' : ''}`} />
+                                          </div>
+                                          <span className={`text-[10px] text-center font-medium transition-colors ${
+                                              pinnedContacts.has(selectedContact.id) ? 'text-blue-600' : 'text-muted-foreground group-hover:text-foreground'
+                                          }`}>
+                                              {pinnedContacts.has(selectedContact.id) ? 'Bỏ ghim' : 'Ghim hội thoại'}
+                                          </span>
+                                       </div>
+                                       <div className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => setIsAddMemberOpen(true)}>
+                                          <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center group-hover:bg-secondary/80 transition-colors">
+                                            <UserPlus className="h-5 w-5 text-muted-foreground" />
+                                          </div>
+                                          <span className="text-[10px] text-center font-medium text-muted-foreground group-hover:text-foreground transition-colors">Thêm thành viên</span>
+                                       </div>
+                                       <div className="flex flex-col items-center gap-2 cursor-pointer group">
+                                          <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center group-hover:bg-secondary/80 transition-colors">
+                                            <Settings className="h-5 w-5 text-muted-foreground" />
+                                          </div>
+                                          <span className="text-[10px] text-center font-medium text-muted-foreground group-hover:text-foreground transition-colors">Quản lý</span>
+                                       </div>
+                                   </div>
+
+                                   {/* Group Menu List */}
+                                   <div className="p-4 space-y-5 border-b border-border">
+                                       <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
+                                           <Users className="h-5 w-5 text-muted-foreground" />
+                                           <span>Thành viên</span>
+                                       </div>
+                                       <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
+                                           <LayoutList className="h-5 w-5 text-muted-foreground" />
+                                           <span>Bảng tin cộng đồng</span>
+                                       </div>
+                                       <div 
+                                           className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80"
+                                           onClick={() => setIsAppointmentDialogOpen(true)}
+                                       >
+                                           <Timer className="h-5 w-5 text-muted-foreground" />
+                                           <span>Danh sách nhắc hẹn</span>
+                                       </div>
+                                       <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
+                                           <Pin className="h-5 w-5 text-muted-foreground" />
+                                           <span>Ghi chú ghim, bình chọn</span>
+                                       </div>
+                                   </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Header Actions */}
+                                    <div className="p-4 flex justify-between items-start border-b border-border">
+                                       <div 
+                                           className="flex flex-col items-center gap-2 cursor-pointer group w-1/3"
+                                           onClick={() => {
+                                               if (isMuted(selectedContact.id)) {
+                                                    setMutedContacts(prev => {
+                                                        const newMuted = { ...prev };
+                                                        delete newMuted[selectedContact.id];
+                                                        return newMuted;
+                                                    });
+                                               } else {
+                                                   setIsMuteDialogOpen(true);
+                                               }
+                                           }}
+                                       >
+                                          <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
+                                              isMuted(selectedContact.id) 
+                                              ? 'bg-red-100 text-red-600' 
+                                              : 'bg-secondary text-muted-foreground group-hover:bg-secondary/80'
+                                          }`}>
+                                            <BellOff className="h-5 w-5" />
+                                          </div>
+                                          <span className={`text-xs text-center font-medium transition-colors ${
+                                              isMuted(selectedContact.id) ? 'text-red-600' : 'text-muted-foreground group-hover:text-foreground'
+                                          }`}>
+                                              {isMuted(selectedContact.id) ? 'Đã tắt' : 'Tắt thông\nbáo'}
+                                          </span>
+                                       </div>
+                                       <div 
+                                           className="flex flex-col items-center gap-2 cursor-pointer group w-1/3"
+                                           onClick={() => togglePin(selectedContact.id)}
+                                       >
+                                          <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
+                                              pinnedContacts.has(selectedContact.id) 
+                                              ? 'bg-blue-100 text-blue-600' 
+                                              : 'bg-secondary text-muted-foreground group-hover:bg-secondary/80'
+                                          }`}>
+                                            <Pin className={`h-5 w-5 ${pinnedContacts.has(selectedContact.id) ? 'fill-blue-600' : ''}`} />
+                                          </div>
+                                          <span className={`text-xs text-center font-medium transition-colors ${
+                                              pinnedContacts.has(selectedContact.id) ? 'text-blue-600' : 'text-muted-foreground group-hover:text-foreground'
+                                          }`}>
+                                              {pinnedContacts.has(selectedContact.id) ? 'Đã ghim' : 'Ghim hội\nthoại'}
+                                          </span>
+                                       </div>
+                                       <div className="flex flex-col items-center gap-2 cursor-pointer group w-1/3" onClick={() => {
+                                           setIsCreateGroupOpen(true);
+                                           if (selectedContact && selectedContact.profile.role !== 'Group') {
+                                               setSelectedFriends(prev => prev.includes(selectedContact.id) ? prev : [...prev, selectedContact.id]);
+                                           }
+                                       }}>
+                                          <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center group-hover:bg-secondary/80 transition-colors">
+                                            <UserPlus className="h-5 w-5 text-muted-foreground" />
+                                          </div>
+                                          <span className="text-xs text-center font-medium text-muted-foreground group-hover:text-foreground transition-colors">Tạo nhóm<br/>trò chuyện</span>
+                                       </div>
+                                    </div>
+
+                                    {/* General Info List */}
+                                    <div className="p-4 space-y-4 border-b border-border">
+                                        <div 
+                                            className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80"
+                                            onClick={() => setIsAppointmentDialogOpen(true)}
+                                        >
+                                            <Clock className="h-5 w-5 text-muted-foreground" />
+                                            <span>Danh sách nhắc hẹn</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
+                                            <Users className="h-5 w-5 text-muted-foreground" />
+                                            <span>0 nhóm chung</span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             {/* Accordions */}
                             <Accordion type="multiple" defaultValue={['images', 'files', 'links', 'security']} className="w-full">
@@ -3089,6 +3680,90 @@ export const SocialChatFeature = () => {
                                     </AccordionContent>
                                 </AccordionItem>
                             </Accordion>
+
+                            {selectedContact.profile.role === 'Group' ? (
+                                <>
+                                    {/* Group Settings */}
+                                    <div className="p-4 space-y-5 border-b border-border">
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
+                                            <Shield className="h-5 w-5 text-muted-foreground" />
+                                            <span>Thiết lập bảo mật</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
+                                            <Clock className="h-5 w-5 text-muted-foreground" />
+                                            <span>Tin nhắn tự xóa</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
+                                            <EyeOff className="h-5 w-5 text-muted-foreground" />
+                                            <span>Ẩn trò chuyện</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Group Footer Actions */}
+                                    <div className="p-4 space-y-5">
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-foreground/80">
+                                            <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                                            <span>Tìm hiểu về cộng đồng</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-red-600 transition-colors text-foreground/80" onClick={handleReportGroup}>
+                                            <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+                                            <span>Báo xấu</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-red-600 transition-colors text-foreground/80" onClick={handleDeleteChatHistory}>
+                                            <Trash2 className="h-5 w-5 text-muted-foreground" />
+                                            <span>{isAdmin ? 'Giải tán nhóm' : 'Xóa lịch sử trò chuyện'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-red-600 transition-colors text-red-600" onClick={handleLeaveGroup}>
+                                            <LogOut className="h-5 w-5" />
+                                            <span>Rời cộng đồng</span>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Personal Chat Settings */}
+                                    <div className="p-4 border-b border-border">
+                                        <div className="flex items-center justify-between mb-4 cursor-pointer hover:text-blue-600 transition-colors">
+                                            <h4 className="font-semibold text-sm">Thiết lập bảo mật</h4>
+                                            <ChevronLeft className="h-4 w-4 rotate-[-90deg] text-muted-foreground" />
+                                        </div>
+                                        
+                                        <div className="space-y-5">
+                                            <div className="flex items-center gap-3 cursor-pointer group">
+                                                <Clock className="h-5 w-5 text-muted-foreground group-hover:text-blue-600 transition-colors" />
+                                                <div className="flex flex-col flex-1">
+                                                    <span className="text-sm font-medium text-foreground/80 group-hover:text-blue-600 transition-colors">Tin nhắn tự xóa</span>
+                                                    <span className="text-xs text-muted-foreground">Không bao giờ</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <EyeOff className="h-5 w-5 text-muted-foreground" />
+                                                    <span className="text-sm font-medium text-foreground/80">Ẩn trò chuyện</span>
+                                                </div>
+                                                <Switch id="hide-chat" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Personal Chat Footer Actions */}
+                                    <div className="p-4 space-y-5">
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-red-600 transition-colors text-foreground/80" onClick={handleReportGroup}>
+                                            <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+                                            <span>Báo xấu</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-sm font-medium cursor-pointer hover:text-red-600 transition-colors text-red-600" onClick={() => {
+                                            if (confirm('Bạn có chắc chắn muốn xóa lịch sử trò chuyện này? Hành động này không thể hoàn tác.')) {
+                                                handleDeleteChatHistory();
+                                            }
+                                        }}>
+                                            <Trash2 className="h-5 w-5" />
+                                            <span>Xoá lịch sử trò chuyện</span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                           </ScrollArea>
                         </>
                       ) : (
@@ -3130,7 +3805,7 @@ export const SocialChatFeature = () => {
                                           }}
                                       >
                                           <div className="flex items-center gap-2 mb-1">
-                                              <Avatar className="h-6 w-6">
+                                              <Avatar className="h-6 w-6 shrink-0">
                                                   <AvatarImage src={cleanUrl(m.sender_id === user.id ? user.user_metadata.avatar_url : selectedContact.profile.avatar_url)} />
                                                   <AvatarFallback>U</AvatarFallback>
                                               </Avatar>
@@ -3167,59 +3842,161 @@ export const SocialChatFeature = () => {
         )}
       </div>
 
-      {/* Create Group Dialog */}
       <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tạo nhóm chat mới</DialogTitle>
+        <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden bg-background border shadow-xl">
+          <DialogHeader className="px-6 py-4 border-b flex flex-row items-center justify-between space-y-0">
+            <DialogTitle className="text-lg font-semibold">Tạo nhóm mới</DialogTitle>
+            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2" onClick={() => setIsCreateGroupOpen(false)}>
+                <X className="h-4 w-4" />
+            </Button>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tên nhóm</label>
-              <Input 
-                placeholder="Nhập tên nhóm..." 
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-              />
+          
+          <div className="p-6 space-y-5">
+            {/* Group Name & Avatar Input */}
+            <div className="flex items-start gap-4">
+              <div className="shrink-0">
+                  <input 
+                    type="file" 
+                    ref={groupAvatarInputRef} 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleGroupAvatarSelect}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-16 w-16 rounded-full border-2 border-dashed border-muted-foreground/20 shrink-0 text-muted-foreground/50 hover:text-blue-600 hover:border-blue-600 hover:bg-blue-50 transition-all p-0 overflow-hidden group"
+                    onClick={() => groupAvatarInputRef.current?.click()}
+                  >
+                    {groupAvatarPreview ? (
+                       <img src={groupAvatarPreview} className="h-full w-full object-cover" alt="Group Avatar" />
+                    ) : (
+                       <Camera className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                    )}
+                  </Button>
+              </div>
+              <div className="flex-1 space-y-2 pt-1">
+                 <div className="relative">
+                    <Input 
+                      className="w-full h-10 pr-12"
+                      placeholder="Đặt tên nhóm..."
+                      value={groupName}
+                      maxLength={50}
+                      onChange={(e) => setGroupName(e.target.value)}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground bg-background pl-1">
+                        {groupName.length}/50
+                    </span>
+                 </div>
+                 <p className="text-[11px] text-muted-foreground">
+                    Tên nhóm giúp mọi người dễ nhận biết hơn.
+                 </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Chọn thành viên ({selectedFriends.length})</label>
-              <ScrollArea className="h-60 border rounded-md p-2">
-                {contacts.filter(c => c.profile.role !== 'Group').length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">Chưa có bạn bè để thêm vào nhóm.</p>
-                ) : (
-                    contacts.filter(c => c.profile.role !== 'Group').map(contact => (
-                    <div 
-                        key={contact.id} 
-                        className="flex items-center justify-between p-2 hover:bg-secondary rounded cursor-pointer"
-                        onClick={() => toggleFriendSelection(contact.id)}
-                    >
-                        <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src={cleanUrl(contact.profile.avatar_url)} />
-                            <AvatarFallback>{contact.profile.full_name?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{contact.profile.full_name}</span>
-                        </div>
-                        {selectedFriends.includes(contact.id) ? (
-                            <div className="h-5 w-5 bg-blue-600 rounded flex items-center justify-center text-white">
-                                <Check className="h-3 w-3" />
-                            </div>
-                        ) : (
-                            <div className="h-5 w-5 border-2 rounded" />
-                        )}
+
+            <Separator />
+
+            {/* Search & Filter */}
+            <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    className="pl-9 h-10 bg-secondary/30 border-transparent focus:border-primary focus:bg-background transition-all"
+                    placeholder="Tìm người muốn thêm..."
+                    value={createGroupSearchQuery}
+                    onChange={(e) => setCreateGroupSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                {/* Filter Tags - Visual Only for now as requested for layout */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+                  <Button size="sm" variant={activeTab === 'all' ? 'default' : 'secondary'} className={`rounded-full h-7 text-xs px-3 shrink-0 transition-all ${activeTab === 'all' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-secondary hover:bg-secondary/80'}`} onClick={() => setActiveTab('all')}>
+                    Gần đây
+                  </Button>
+                  {['Bạn bè', 'Đồng nghiệp', 'Gia đình'].map(tag => (
+                    <Button key={tag} variant="secondary" size="sm" className="rounded-full h-7 text-xs px-3 shrink-0 bg-secondary/50 hover:bg-secondary text-secondary-foreground font-normal border border-transparent transition-colors">
+                        {tag}
+                    </Button>
+                  ))}
+                </div>
+            </div>
+
+            {/* Contact List */}
+            <div className="border rounded-lg overflow-hidden bg-secondary/10">
+              <div className="px-3 py-2 bg-secondary/30 border-b flex items-center justify-between">
+                 <h3 className="text-xs font-semibold text-muted-foreground">DANH SÁCH BẠN BÈ</h3>
+                 {selectedFriends.length > 0 && (
+                     <Badge variant="secondary" className="h-5 px-2 text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-100">
+                        Đã chọn {selectedFriends.length}
+                     </Badge>
+                 )}
+              </div>
+              <ScrollArea className="h-[220px]">
+                 <div className="p-2 space-y-1">
+                 {contacts.filter(c => {
+                    if (c.profile.role === 'Group') return false;
+                    if (!createGroupSearchQuery) return true;
+                    const q = createGroupSearchQuery.toLowerCase();
+                    return c.profile.full_name?.toLowerCase().includes(q);
+                 }).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground space-y-2">
+                        <UserPlus className="h-8 w-8 opacity-20" />
+                        <p className="text-sm">
+                            {createGroupSearchQuery ? 'Không tìm thấy người này.' : 'Chưa có bạn bè nào.'}
+                        </p>
                     </div>
+                ) : (
+                    contacts.filter(c => {
+                        if (c.profile.role === 'Group') return false;
+                        if (!createGroupSearchQuery) return true;
+                        const q = createGroupSearchQuery.toLowerCase();
+                        return c.profile.full_name?.toLowerCase().includes(q);
+                    }).map(contact => (
+                        <div 
+                            key={contact.id} 
+                            className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-all group ${
+                                selectedFriends.includes(contact.id) ? 'bg-blue-50/80 dark:bg-blue-900/20' : 'hover:bg-secondary'
+                            }`}
+                            onClick={() => toggleFriendSelection(contact.id)}
+                        >
+                            <Avatar className="h-9 w-9 shrink-0 border border-border/50">
+                                <AvatarImage src={cleanUrl(contact.profile.avatar_url)} className="object-cover" />
+                                <AvatarFallback>{contact.profile.full_name?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            
+                            <div className="flex flex-col min-w-0 flex-1">
+                                <span className={`text-sm truncate ${selectedFriends.includes(contact.id) ? 'font-medium text-blue-700 dark:text-blue-300' : 'font-medium text-foreground'}`}>
+                                    {contact.profile.full_name}
+                                </span>
+                            </div>
+
+                            {/* Checkbox-style selection */}
+                            <div className={`h-5 w-5 rounded border flex items-center justify-center transition-all duration-200 shrink-0 ${
+                                selectedFriends.includes(contact.id) 
+                                    ? 'bg-blue-600 border-blue-600 shadow-sm' 
+                                    : 'border-muted-foreground/30 group-hover:border-blue-400'
+                            }`}>
+                                {selectedFriends.includes(contact.id) && <Check className="h-3.5 w-3.5 text-white" />}
+                            </div>
+                        </div>
                     ))
                 )}
+                </div>
               </ScrollArea>
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsCreateGroupOpen(false)}>Hủy</Button>
-            <Button onClick={handleCreateGroup} disabled={isCreatingGroup || !groupName.trim() || selectedFriends.length === 0}>
-                {isCreatingGroup ? <Loader2 className="animate-spin mr-2" /> : null}
-                Tạo nhóm
-            </Button>
+
+          <div className="p-4 border-t bg-muted/10 flex items-center justify-between">
+            <div className="text-xs text-muted-foreground">
+                {selectedFriends.length > 0 ? `${selectedFriends.length} thành viên` : 'Chọn thành viên'}
+            </div>
+            <div className="flex gap-3">
+                <Button variant="ghost" className="px-4" onClick={() => setIsCreateGroupOpen(false)}>Hủy</Button>
+                <Button className="px-6 bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all" onClick={handleCreateGroup} disabled={isCreatingGroup || !groupName.trim() || selectedFriends.length === 0}>
+                    {isCreatingGroup ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+                    Tạo nhóm
+                </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

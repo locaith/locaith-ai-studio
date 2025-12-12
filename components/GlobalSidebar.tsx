@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../src/hooks/useAuth';
 import { useLayoutContext } from '../src/context/LayoutContext';
-import { cn } from "@/lib/utils";
+import { cn, cleanUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -319,16 +319,20 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
                   className={cn(
                     "mb-2 transition-all duration-200 h-auto",
                     isCollapsed 
-                      ? "w-10 h-10 p-0 ml-3 neu-icon-btn rounded-full" 
+                      ? `w-10 h-10 ml-3 rounded-full ${user?.user_metadata?.avatar_url ? 'p-0 border-0 ring-0 overflow-hidden bg-transparent shadow-none hover:opacity-80' : 'p-0 neu-icon-btn'}`
                       : "w-full justify-start px-2 py-2",
                     activeFeature === 'profile'
-                      ? isCollapsed ? "neu-pressed-primary text-primary" : "neu-pressed-primary text-primary font-medium" 
-                      : isCollapsed ? "neu-btn hover:text-primary" : "neu-btn hover:text-primary text-muted-foreground"
+                      ? isCollapsed 
+                        ? (user?.user_metadata?.avatar_url ? "" : "neu-pressed-primary text-primary") 
+                        : "neu-pressed-primary text-primary font-medium" 
+                      : isCollapsed 
+                        ? (user?.user_metadata?.avatar_url ? "" : "neu-btn hover:text-primary") 
+                        : "neu-btn hover:text-primary text-muted-foreground"
                   )}
                   onClick={() => onSelect('profile')}
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.user_metadata?.avatar_url} />
+                  <Avatar className={cn("transition-all", isCollapsed ? "h-full w-full" : "h-8 w-8")}>
+                    <AvatarImage src={cleanUrl(user?.user_metadata?.avatar_url)} />
                     <AvatarFallback className={cn(activeFeature === 'profile' ? "text-primary" : "")}>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
                   <div className={cn(
