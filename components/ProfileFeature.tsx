@@ -432,18 +432,6 @@ export const ProfileFeature = () => {
             <div className="space-y-4">
                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pl-1">Khác</h3>
                  <Card className="border shadow-sm divide-y divide-border/50">
-                    <div className="p-4 bg-gradient-to-r from-indigo-500/5 to-purple-500/5">
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                                <Crown className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-sm mb-1">Nâng cấp Pro Plan</h4>
-                                <p className="text-xs text-muted-foreground mb-3">Mở khóa toàn bộ tính năng AI cao cấp và giới hạn không giới hạn.</p>
-                                <Button size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700">Nâng cấp ngay</Button>
-                            </div>
-                        </div>
-                    </div>
 
                     <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="settings" className="border-b-0">

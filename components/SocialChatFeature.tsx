@@ -2246,9 +2246,14 @@ export const SocialChatFeature = () => {
                       </TabsTrigger>
                       <TabsTrigger 
                         value="friends" 
-                        className="data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-0 pb-2 text-xs font-semibold text-muted-foreground"
+                        className="data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-0 pb-2 text-xs font-semibold text-muted-foreground flex items-center gap-1"
                       >
                         Danh sách
+                        {incomingRequests.length > 0 && (
+                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold px-1">
+                                {incomingRequests.length > 99 ? '99+' : incomingRequests.length}
+                            </span>
+                        )}
                       </TabsTrigger>
                     </TabsList>
                  </Tabs>
@@ -2306,8 +2311,15 @@ export const SocialChatFeature = () => {
                     <Users className="h-4 w-4" /> Nhóm và cộng đồng
                 </Button>
                  <Separator className="my-2" />
-                 <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground font-medium">
-                     <UserPlus className="h-4 w-4" /> Lời mời kết bạn
+                 <Button variant="ghost" className="w-full justify-between text-muted-foreground font-medium hover:text-foreground">
+                     <div className="flex items-center gap-3">
+                        <UserPlus className="h-4 w-4" /> Lời mời kết bạn
+                     </div>
+                     {incomingRequests.length > 0 && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold px-1.5">
+                            {incomingRequests.length}
+                        </span>
+                     )}
                  </Button>
                  <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground font-medium">
                      <Shield className="h-4 w-4" /> Lời mời vào nhóm
