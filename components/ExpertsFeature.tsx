@@ -269,7 +269,7 @@ export const ExpertsFeature = () => {
     <div className="h-full w-full bg-slate-50/50 dark:bg-background text-foreground overflow-y-auto relative font-sans animate-fade-in-up">
       
       {/* Header - Compact & Sticky */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-fit">
                 <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
@@ -301,10 +301,10 @@ export const ExpertsFeature = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8 pb-24">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8 pb-32">
         
         {/* Filters - Sticky below header */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 sticky top-16 z-30 py-2 bg-slate-50/50 dark:bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 py-2 bg-slate-50/50 dark:bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <ScrollArea className="w-full max-w-[calc(100vw-32px)]">
                 <div className="flex items-center gap-2">
                     {expertCategories.map((cat) => (

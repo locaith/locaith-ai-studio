@@ -302,7 +302,7 @@ export const ComposeFeature: React.FC = () => {
         style={{ width: leftWidth }}
         className={`${activeMobileTab === 'chat' ? 'flex' : 'hidden'} md:flex flex-col border-r border-gray-200/50 neu-bg z-10 relative flex-shrink-0 w-full md:w-auto h-full`}
       >
-        <div className="h-14 md:h-auto p-0 md:p-4 border-b border-gray-200/50 flex items-center gap-2 neu-bg sticky top-0 z-50 md:static">
+        <div className="md:h-auto p-0 md:p-4 border-b border-gray-200/50 flex items-center gap-2 neu-bg sticky top-0 z-50 md:static pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))]">
           <div className="flex items-center gap-2 px-4 md:px-0 w-full h-full">
             <div className="neu-pressed h-10 w-10 flex items-center justify-center rounded-xl text-primary md:flex hidden">
                 <FileText className="w-5 h-5" />
@@ -385,7 +385,7 @@ export const ComposeFeature: React.FC = () => {
           )}
         </div>
 
-        <div className="p-4 border-t border-gray-200/50">
+        <div className="p-4 border-t border-gray-200/50 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <div className="relative neu-pressed rounded-2xl p-1 bg-gray-50/50">
             <Textarea
               value={chatInput}
@@ -428,7 +428,7 @@ export const ComposeFeature: React.FC = () => {
 
       {/* Right Column: A4 Preview */}
       <div className={`${activeMobileTab === 'document' ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full overflow-hidden relative neu-bg`}>
-        <div className="h-14 neu-bg border-b border-border flex items-center justify-between px-4 md:px-6 z-20 sticky top-0 md:static">
+        <div className="neu-bg border-b border-border flex items-center justify-between px-4 md:px-6 z-20 sticky top-0 md:static pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))]">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground">Xem trước (A4)</span>
             <span className="hidden md:inline-block px-2 py-0.5 neu-pressed text-[10px] text-muted-foreground rounded">Chế độ chỉnh sửa</span>

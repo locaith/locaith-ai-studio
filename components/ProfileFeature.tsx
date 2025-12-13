@@ -143,7 +143,7 @@ export const ProfileFeature = () => {
   ];
 
   return (
-    <div className="h-full w-full bg-background pb-24 overflow-y-auto">
+    <div className="h-full w-full bg-background pb-32 overflow-y-auto">
       <input 
           type="file" 
           ref={fileInputRef} 
@@ -152,7 +152,7 @@ export const ProfileFeature = () => {
           onChange={handleAvatarUpload}
       />
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 h-14 px-4 border-b border-border flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] px-4 border-b border-border flex items-center justify-between">
         <h1 className="text-lg font-semibold text-foreground">Hồ sơ cá nhân</h1>
         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground">
             <Settings className="h-5 w-5" />

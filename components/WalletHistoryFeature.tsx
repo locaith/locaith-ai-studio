@@ -28,7 +28,7 @@ export const WalletHistoryFeature = () => {
   return (
     <div className="h-full w-full bg-background flex flex-col">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 h-14 px-4 border-b border-border flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] px-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="-ml-2">
             <ArrowLeft className="h-5 w-5" />
@@ -40,7 +40,7 @@ export const WalletHistoryFeature = () => {
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-3xl mx-auto w-full space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 pb-32 md:p-6 max-w-3xl mx-auto w-full space-y-6">
         
         {/* Filters */}
         <div className="flex flex-col gap-4">

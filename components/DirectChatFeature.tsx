@@ -135,7 +135,7 @@ export const DirectChatFeature = () => {
   return (
     <div className="flex flex-col h-full w-full bg-transparent text-foreground animate-in fade-in duration-300">
       {/* Header */}
-      <div className="flex items-center p-4 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
+      <div className="flex items-center px-4 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10 pt-[env(safe-area-inset-top)] h-[calc(4.5rem+env(safe-area-inset-top))]">
         <div className="p-2 rounded-xl neu-flat mr-3 text-brand-600">
           <MessageCircle className="w-6 h-6" />
         </div>
@@ -194,7 +194,7 @@ export const DirectChatFeature = () => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-border bg-background/80 backdrop-blur-md">
+      <div className="p-4 border-t border-border bg-background/80 backdrop-blur-md pb-[calc(1rem+env(safe-area-inset-bottom))]">
         {error && (
             <div className="mb-3 flex items-center gap-2 text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">
                 <AlertCircle size={16} />

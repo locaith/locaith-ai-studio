@@ -126,7 +126,7 @@ export const SettingsFeature: React.FC = () => {
   return (
     <div className="h-full w-full bg-background flex flex-col">
       {/* Mobile Header */}
-      <div className="md:hidden sticky top-0 z-50 neu-bg border-b border-border h-14 flex items-center px-3 shadow-sm shrink-0">
+      <div className="md:hidden sticky top-0 z-50 neu-bg border-b border-border pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] flex items-center px-3 shadow-sm shrink-0">
          <div className="flex items-center gap-2 w-full">
             <Button 
                 onClick={() => navigate(-1)} 
@@ -177,7 +177,7 @@ export const SettingsFeature: React.FC = () => {
           </TabsList>
 
           {/* Content Area */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-8 md:pb-24">
+          <div className="flex-1 overflow-y-auto p-4 pb-32 md:p-8 md:pb-24">
             <div className="max-w-4xl mx-auto space-y-6">
                 
                 {/* --- GENERAL TAB --- */}

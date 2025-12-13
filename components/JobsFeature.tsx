@@ -754,7 +754,7 @@ export const JobsFeature: React.FC = () => {
     <div className="h-full w-full bg-slate-50/50 dark:bg-background text-foreground overflow-y-auto relative font-sans">
       
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-fit">
                 <div 
@@ -799,7 +799,7 @@ export const JobsFeature: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8 pb-24">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8 pb-32">
         
         {/* Hero / Stats Section */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">

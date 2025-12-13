@@ -393,7 +393,7 @@ export const AppMarketplaceFeature: React.FC = () => {
   return (
     <div className="h-full w-full bg-slate-50/50 dark:bg-background text-foreground overflow-y-auto relative font-sans">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-fit">
                 <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
@@ -453,7 +453,7 @@ export const AppMarketplaceFeature: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-12 pb-24">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-12 pb-32">
         
         {/* Hero Banner (Only show when not searching) */}
         {!searchQuery && activeCategory === 'all' && (

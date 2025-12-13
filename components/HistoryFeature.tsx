@@ -127,7 +127,7 @@ export const HistoryFeature = () => {
   return (
     <div className="h-full w-full bg-background flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b h-14 px-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
             <ArrowLeft className="h-5 w-5" />

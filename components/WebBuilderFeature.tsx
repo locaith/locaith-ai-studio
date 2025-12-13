@@ -658,7 +658,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
     return (
         <div className="flex flex-col h-full neu-bg overflow-hidden animate-fade-in text-gray-700">
             {/* Top Bar */}
-            <div className="h-14 flex items-center justify-between px-4 neu-bg z-50 shadow-sm">
+            <div className="sticky top-0 z-50 neu-bg shadow-sm pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] flex items-center justify-between px-4">
                 <div className="flex items-center gap-4">
                     <Button 
                         variant="ghost" 

@@ -541,14 +541,14 @@ export const ContentAutomationFeature: React.FC = () => {
   return (
     <div className="h-full bg-white/50 backdrop-blur-sm overflow-y-auto animate-fade-in-up">
       {/* Mobile Header */}
-      <div className="md:hidden sticky top-0 z-50 neu-bg border-b border-[var(--sidebar-border)] h-14 flex items-center px-4 shadow-sm gap-3">
+      <div className="md:hidden sticky top-0 z-50 neu-bg border-b border-[var(--sidebar-border)] pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] flex items-center px-4 shadow-sm gap-3">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-zinc-500 to-zinc-600 flex items-center justify-center shadow-md text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
             </div>
             <span className="font-bold text-lg text-[var(--neu-text)]">Auto-Pilot</span>
       </div>
 
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6 max-w-5xl mx-auto pb-32">
         <div className="hidden md:flex items-center gap-4 mb-8">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-zinc-500 to-zinc-600 flex items-center justify-center shadow-lg text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>

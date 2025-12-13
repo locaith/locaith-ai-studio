@@ -335,7 +335,7 @@ export const MyJobsFeature = () => {
   return (
     <div className="h-full w-full bg-background flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b h-14 px-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
              <ArrowDownLeft className="h-5 w-5 rotate-45" />
@@ -352,7 +352,7 @@ export const MyJobsFeature = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 pb-32 md:p-6 max-w-5xl mx-auto w-full">
         <Tabs defaultValue="received" value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
              <TabsList className="grid w-full md:w-[400px] grid-cols-2">

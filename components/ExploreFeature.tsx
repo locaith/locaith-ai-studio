@@ -193,7 +193,7 @@ export const ExploreFeature: React.FC = () => {
       </div>
 
       {/* Header Section - Mobile */}
-      <div className="md:hidden sticky top-0 z-10 neu-bg border-b border-sidebar-border px-3 h-14 flex items-center gap-2 shadow-sm">
+      <div className="md:hidden sticky top-0 z-10 neu-bg border-b border-sidebar-border px-3 pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] flex items-center gap-2 shadow-sm">
           <Button 
               size="icon" 
               className="neu-icon-btn shrink-0 h-9 w-9 hover:text-primary"
@@ -237,7 +237,7 @@ export const ExploreFeature: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-3 md:px-6 pb-20 space-y-4 md:space-y-10 relative z-0">
+      <div className="max-w-5xl mx-auto px-3 md:px-6 pb-32 space-y-4 md:space-y-10 relative z-0">
         
         {/* Hero Search Section */}
         <div className="hidden md:block pt-8 text-center space-y-6">

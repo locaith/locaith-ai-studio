@@ -128,7 +128,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onBack }) 
       </div>
 
       {/* Left Column: Form */}
-      <div className="relative flex flex-col justify-center px-4 sm:px-12 md:px-20 lg:px-24 xl:px-32 z-20 lg:order-1 h-full">
+      <div className="relative flex flex-col justify-center px-4 sm:px-12 md:px-20 lg:px-24 xl:px-32 z-20 lg:order-1 h-full pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         {/* Glow background for form area - Desktop only or subtle on mobile */}
         <div className="absolute inset-0 pointer-events-none hidden lg:block">
           <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[100px] opacity-50" />

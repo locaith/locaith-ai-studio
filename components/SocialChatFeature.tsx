@@ -1940,7 +1940,7 @@ export const SocialChatFeature = () => {
         {mainView === 'chat' ? (
           <>
             {/* Search & Header */}
-            <div className="flex items-center gap-2 p-3 border-b border-border bg-background">
+            <div className="flex items-center gap-2 px-3 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] border-b border-border bg-background">
                  {/* 1. Icon Kính lúp (Search Icon) */}
                  <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground rounded-full hover:bg-secondary">
                      <Search className="h-5 w-5" />
@@ -2400,7 +2400,7 @@ export const SocialChatFeature = () => {
                   {/* Header - Synchronized with Chat Header */}
                   <div className="flex flex-col bg-background shrink-0">
                       {/* Top Bar */}
-                      <div className="flex items-center gap-2 p-3 border-b border-border bg-background">
+                      <div className="flex items-center gap-2 px-3 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] border-b border-border bg-background">
                            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground rounded-full hover:bg-secondary">
                                <Search className="h-5 w-5" />
                            </Button>
@@ -2693,7 +2693,7 @@ export const SocialChatFeature = () => {
                     {selectedContact ? (
                         <>
                             {/* Chat Header */}
-                            <div className="h-16 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
+                            <div className="sticky top-0 z-40 pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))] border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
                             <div className="flex items-center gap-3">
                                 <Button 
                                     variant="ghost" 
@@ -3280,7 +3280,7 @@ export const SocialChatFeature = () => {
                                 </div>
 
                                 {/* Mobile Layout */}
-                                <div className="flex md:hidden items-center gap-2 p-2 px-3 border-t border-border">
+                                <div className="flex md:hidden items-center gap-2 p-2 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] border-t border-border bg-background">
                                     <Popover open={isStickerOpen} onOpenChange={setIsStickerOpen}>
                                         <PopoverTrigger asChild>
                                             <Button variant="ghost" size="icon" className="text-muted-foreground shrink-0 h-9 w-9">
@@ -3367,7 +3367,7 @@ export const SocialChatFeature = () => {
                     <div className="fixed inset-0 z-50 w-full lg:static lg:w-80 lg:z-auto border-l border-border bg-background flex flex-col shrink-0 animate-in slide-in-from-right duration-300">
                       {rightSidebarView === 'info' ? (
                         <>
-                          <div className="h-16 border-b border-border flex items-center justify-between px-4 font-bold text-base shrink-0">
+                          <div className="sticky top-0 z-40 bg-background pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))] border-b border-border flex items-center justify-between px-4 font-bold text-base shrink-0">
                             <span className="lg:hidden w-9"></span>
                             <span className="flex-1 text-center lg:text-left lg:flex-none">Thông tin hội thoại</span>
                             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setShowRightSidebar(false)}>

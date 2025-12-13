@@ -88,7 +88,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-start md:justify-center p-4 pt-16 md:pt-4 pb-24 md:pb-4 relative overflow-y-auto md:overflow-hidden min-h-[500px] md:min-h-0">
+            <div className="flex-1 flex flex-col items-center justify-start p-4 pt-4 md:justify-center md:pt-4 pb-32 md:pb-4 relative overflow-y-auto md:overflow-hidden min-h-[500px] md:min-h-0 no-scrollbar">
                 
                 <div className="w-full max-w-3xl z-10 flex flex-col items-center text-center space-y-10 animate-in fade-in zoom-in duration-700">
                     

@@ -1,4 +1,4 @@
-﻿﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
   MicOff,
@@ -654,7 +654,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ mode, setMode, onNavigate, onFill
       <div className={`flex flex-col h-full bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 transition-all duration-500 ${mode === 'WIDGET' ? 'hidden' : ''}`}>
         
         {/* Header - Glassmorphism */}
-        <div className="flex items-center justify-between px-6 py-4 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b border-indigo-100 dark:border-indigo-900/50 z-10 sticky top-0">
+        <div className="flex items-center justify-between px-6 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b border-indigo-100 dark:border-indigo-900/50 z-10 sticky top-0">
           <div className="flex items-center space-x-3">
              <div className="relative">
                 <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-slate-400'} shadow-sm`} />

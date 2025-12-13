@@ -31,7 +31,7 @@ const blobToBase64 = async (blobUrl: string): Promise<string> => {
 const SelectionView: React.FC<{ onSelect: (type: DesignType) => void }> = ({ onSelect }) => (
     <div className="flex flex-col h-full animate-fade-in-up neu-bg">
         {/* Mobile Header */}
-        <div className="md:hidden sticky top-0 z-50 neu-bg border-b border-border h-14 flex items-center justify-center shadow-sm">
+        <div className="md:hidden sticky top-0 z-50 neu-bg border-b border-border pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] flex items-center justify-center shadow-sm">
             <span className="font-bold text-lg text-foreground">Thiết kế AI</span>
         </div>
         

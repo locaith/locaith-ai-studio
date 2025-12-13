@@ -113,7 +113,7 @@ export const SearchFeature: React.FC = () => {
       <div className={`${hasSearched ? 'w-full max-w-[1920px] mx-auto px-4' : 'w-full max-w-4xl mx-auto mt-[10vh] md:mt-[15vh] px-6'} flex flex-col transition-all duration-700 h-full relative z-10`}>
         
         {/* Search Header */}
-        <div className={`${hasSearched ? 'py-4 border-b border-border sticky top-0 z-30 bg-background/80 backdrop-blur-md' : 'p-0 flex flex-col items-center'} transition-all duration-500`}>
+        <div className={`${hasSearched ? 'py-4 border-b border-border sticky top-0 z-30 bg-background/80 backdrop-blur-md pt-[calc(1rem+env(safe-area-inset-top))]' : 'p-0 flex flex-col items-center'} transition-all duration-500`}>
            
            {!hasSearched && (
              <div className="mb-8 md:mb-12 flex flex-col items-center animate-fade-in-down">
