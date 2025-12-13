@@ -33,7 +33,7 @@ const MobileBottomNav = ({ activeFeature, onSelect, unreadCount }: { activeFeatu
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 neu-bg border-t border-sidebar-border z-50 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-      <div className="flex justify-between items-center h-16 px-2 gap-2">
+      <div className="flex justify-between items-center h-[3.25rem] px-2 gap-1">
         {navItems.map((item) => {
           const isActive = activeFeature === item.id || (item.id === 'dashboard' && activeFeature === 'dashboard');
           const Icon = item.icon;
@@ -41,7 +41,7 @@ const MobileBottomNav = ({ activeFeature, onSelect, unreadCount }: { activeFeatu
             <button
               key={item.id}
               onClick={() => onSelect(item.id as FeatureType)}
-              className={`flex flex-col items-center justify-center flex-1 h-12 rounded-xl transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center flex-1 h-full rounded-xl transition-all duration-200 ${
                 isActive 
                   ? 'neu-pressed-primary text-primary scale-95' 
                   : 'neu-btn text-muted-foreground hover:text-primary active:scale-95'
@@ -50,12 +50,12 @@ const MobileBottomNav = ({ activeFeature, onSelect, unreadCount }: { activeFeatu
               <div className="relative">
                 <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
                 {item.badge && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold px-1 py-0.5 rounded-full shadow-sm">
                     {item.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[9px] font-semibold mt-0.5">{item.label}</span>
+              <span className="text-[9px] font-semibold mt-0.5 leading-none">{item.label}</span>
             </button>
           );
         })}
