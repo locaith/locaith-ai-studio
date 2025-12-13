@@ -32,7 +32,7 @@ const MobileBottomNav = ({ activeFeature, onSelect, unreadCount }: { activeFeatu
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 neu-bg border-t border-sidebar-border z-50 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 neu-bg border-t border-sidebar-border z-50 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
       <div className="flex justify-between items-center h-16 px-2 gap-2">
         {navItems.map((item) => {
           const isActive = activeFeature === item.id || (item.id === 'dashboard' && activeFeature === 'dashboard');
@@ -127,7 +127,7 @@ const LayoutContent = ({ children }: LayoutProps) => {
   const isDarkMode = theme === 'dark';
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
+    <div className="flex h-[100dvh] bg-background overflow-hidden relative">
       {/* Global Background Gradient */}
       <div 
         className="absolute inset-0 pointer-events-none transition-opacity duration-700"
