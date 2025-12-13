@@ -5,9 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Layout } from "./src/components/layout/Layout";
 import { AuthProvider } from "./src/components/AuthProvider";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import React, { Suspense } from "react";
 
 import { VoiceMode } from "./src/types/voice";
+import { SocialChatFeature } from "./components/SocialChatFeature";
 
 // Existing Features (Lazy Loaded)
 const ComposeFeature = React.lazy(() => import('./components/ComposeFeature').then(m => ({ default: m.ComposeFeature })));
@@ -22,7 +24,6 @@ const WebBuilderFeature = React.lazy(() => import('./components/WebBuilderFeatur
 const JobsFeature = React.lazy(() => import('./components/JobsFeature').then(m => ({ default: m.JobsFeature })));
 const ExpertsFeature = React.lazy(() => import('./components/ExpertsFeature').then(m => ({ default: m.ExpertsFeature })));
 const DirectChatFeature = React.lazy(() => import('./components/DirectChatFeature').then(m => ({ default: m.DirectChatFeature })));
-const SocialChatFeature = React.lazy(() => import('./components/SocialChatFeature').then(m => ({ default: m.SocialChatFeature })));
 const ContentAutomationFeature = React.lazy(() => import('./components/ContentAutomationFeature').then(m => ({ default: m.ContentAutomationFeature })));
 const SettingsFeature = React.lazy(() => import('./components/SettingsFeature').then(m => ({ default: m.SettingsFeature })));
 const ProfileFeature = React.lazy(() => import('./components/ProfileFeature').then(m => ({ default: m.ProfileFeature })));
@@ -96,9 +97,10 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Layout>
-              <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
-                <Routes>
-                  <Route path="/" element={<DashboardRoute />} />
+              <ErrorBoundary>
+                <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+                  <Routes>
+                    <Route path="/" element={<DashboardRoute />} />
                   <Route path="/builder" element={<WebBuilderRoute />} />
                   <Route path="/compose" element={<ComposeFeature />} />
                   <Route path="/design" element={<DesignFeature initialType="interior" />} />
@@ -130,7 +132,8 @@ const App = () => (
                   {/* Add catch-all route */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
-              </Suspense>
+                </Suspense>
+              </ErrorBoundary>
             </Layout>
           </BrowserRouter>
         </TooltipProvider>

@@ -451,7 +451,7 @@ const PostJobModal = () => (
   </DialogContent>
 );
 
-const ApplyJobModal = ({ job }: { job: any }) => {
+const ApplyJobPage = ({ job, onBack }: { job: any; onBack: () => void }) => {
   const [bid, setBid] = useState<string>("");
   
   // Helper to parse and format currency
@@ -472,130 +472,144 @@ const ApplyJobModal = ({ job }: { job: any }) => {
   const net = bidAmount - fee;
 
   return (
-    <DialogContent className="sm:max-w-[800px] w-[95vw] md:w-full rounded-2xl p-0 overflow-hidden bg-[#f8f9fc] dark:bg-background max-h-[90dvh] md:max-h-[85vh]">
-      {/* Header - Compact & Professional */}
-      <div className="bg-white dark:bg-secondary/20 border-b px-3 py-2 md:px-6 md:py-4 flex items-center justify-between sticky top-0 z-10 shrink-0">
-          <div className="flex-1 min-w-0">
-              <DialogTitle className="text-sm md:text-lg font-bold text-foreground flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-primary shrink-0" />
-                  <span className="line-clamp-1">Ứng tuyển: <span className="text-primary">{job.title}</span></span>
-              </DialogTitle>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[10px] md:text-xs text-muted-foreground">
-                   <span className="flex items-center gap-1 shrink-0"><DollarSign className="w-3 h-3" /> <span className="truncate max-w-[150px]">{job.budget}</span></span>
-                   <span className="bg-muted px-1.5 rounded-full shrink-0">ID: #{job.id}</span>
-              </div>
-          </div>
-      </div>
+    <div className="flex flex-col flex-1 h-full min-w-0 bg-background relative z-10">
+        {/* Header */}
+        <div className="h-14 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4">
+             <Button 
+                variant="ghost" 
+                size="sm" 
+                className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+                onClick={onBack}
+            >
+                <ChevronLeft className="w-5 h-5" />
+                <span className="font-medium">Quay lại</span>
+            </Button>
+            <div className="text-sm font-semibold text-foreground/80 hidden md:block">
+                Ứng tuyển: {job.title}
+            </div>
+        </div>
+        
+        <ScrollArea className="flex-1 w-full">
+            <div className="max-w-5xl mx-auto w-full p-4 md:p-8 pb-32">
+                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Left Column: Application Form (8 cols) */}
+                    <div className="lg:col-span-8 space-y-6">
+                        <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 md:p-8">
+                            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                                <FileText className="w-5 h-5 text-primary" />
+                                Thư giới thiệu & Hồ sơ
+                            </h2>
+                            
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label className="text-base font-semibold">Tại sao bạn phù hợp với công việc này?</Label>
+                                    <Textarea 
+                                        className="min-h-[200px] rounded-xl border-muted-foreground/20 focus:border-primary resize-y bg-secondary/10 text-base leading-relaxed p-4 shadow-sm"
+                                        placeholder="Hãy viết ngắn gọn về kinh nghiệm và kỹ năng của bạn..."
+                                    />
+                                </div>
 
-      <ScrollArea className="flex-1 overflow-y-auto">
-          <div className="p-3 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-6 pb-20 md:pb-6">
-              
-              {/* Left Column: Proposal Content (7 cols) */}
-              <div className="md:col-span-7 space-y-3 md:space-y-6">
-                   <div className="space-y-1.5 md:space-y-3">
-                      <Label className="text-xs md:text-base font-semibold flex items-center gap-2">
-                          <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" /> Thư giới thiệu
-                      </Label>
-                      <Textarea 
-                          className="min-h-[100px] md:min-h-[200px] rounded-xl border-muted-foreground/20 focus:border-primary resize-none bg-white dark:bg-secondary/10 text-xs md:text-sm leading-relaxed p-3 md:p-4 shadow-sm"
-                          placeholder="Hãy thuyết phục khách hàng rằng bạn là người phù hợp nhất..."
-                      />
-                   </div>
+                                <div className="space-y-2">
+                                    <Label className="text-base font-semibold">Tài liệu đính kèm</Label>
+                                     <div className="border-2 border-dashed border-muted-foreground/20 rounded-xl p-8 flex flex-col items-center justify-center gap-4 bg-secondary/5 hover:bg-secondary/10 transition-colors cursor-pointer group">
+                                        <div className="bg-secondary p-3 rounded-full group-hover:scale-110 transition-transform">
+                                            <Upload className="w-6 h-6 text-muted-foreground" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-medium text-foreground">
+                                                <span className="text-primary hover:underline">Tải lên</span> CV hoặc Portfolio của bạn
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">Hỗ trợ PDF, DOCX, JPG, PNG (Tối đa 10MB)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                   <div className="space-y-1.5 md:space-y-3">
-                      <Label className="text-xs md:text-base font-semibold flex items-center gap-2">
-                          <Paperclip className="w-3.5 h-3.5 md:w-4 md:h-4" /> Tài liệu đính kèm
-                      </Label>
-                       <div className="border border-dashed border-muted-foreground/30 rounded-xl p-3 md:p-4 flex items-center justify-center gap-3 md:gap-4 bg-white dark:bg-secondary/10 hover:bg-secondary/20 transition-colors cursor-pointer group">
-                          <div className="bg-secondary p-1.5 md:p-2 rounded-lg group-hover:scale-110 transition-transform">
-                              <Upload className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
-                          </div>
-                          <div className="text-xs md:text-sm text-muted-foreground">
-                              <span className="text-primary font-medium">Tải lên</span> CV hoặc Portfolio
-                          </div>
-                      </div>
-                   </div>
-              </div>
+                    {/* Right Column: Job Summary & Terms (4 cols) */}
+                    <div className="lg:col-span-4 space-y-6">
+                        {/* Job Summary Card */}
+                        <div className="bg-secondary/10 rounded-2xl border border-border/50 p-6 space-y-4">
+                            <h3 className="font-bold text-lg text-foreground">Thông tin công việc</h3>
+                            <div className="space-y-3 text-sm">
+                                <div className="font-medium text-primary text-base line-clamp-2">{job.title}</div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <DollarSign className="w-4 h-4" />
+                                    <span>Ngân sách: <span className="text-foreground font-medium">{job.budget}</span></span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <MapPin className="w-4 h-4" />
+                                    <span>{job.location}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <Briefcase className="w-4 h-4" />
+                                    <span>{job.type}</span>
+                                </div>
+                            </div>
+                        </div>
 
-              {/* Right Column: Financial Terms (5 cols) */}
-              <div className="md:col-span-5 space-y-3">
-                  <div className="bg-white dark:bg-secondary/10 rounded-xl border border-border shadow-sm p-3 md:p-5 space-y-3 md:space-y-5">
-                      <div className="flex items-center gap-2 pb-2 md:pb-3 border-b border-dashed">
-                          <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
-                          <h3 className="font-bold text-xs md:text-sm uppercase text-muted-foreground tracking-wider">Chi phí & Thời gian</h3>
-                      </div>
+                        {/* Bid Terms Card */}
+                        <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 space-y-6">
+                            <h3 className="font-bold text-lg flex items-center gap-2">
+                                <DollarSign className="w-5 h-5 text-green-600" />
+                                Chi phí & Thời gian
+                            </h3>
 
-                      {/* Bid Input */}
-                      <div className="space-y-1.5">
-                           <Label className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase">Chào giá (VNĐ)</Label>
-                           <div className="relative">
-                              <Input 
-                                  value={bid}
-                                  onChange={handleBidChange}
-                                  className="pl-8 md:pl-9 h-9 md:h-12 text-sm md:text-lg font-bold bg-secondary/30 border-transparent hover:border-primary/30 focus:bg-background focus:border-primary transition-all rounded-lg"
-                                  placeholder="0"
-                                  type="tel" 
-                              />
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₫</span>
-                           </div>
-                           
-                           {/* Calculation Breakdown */}
-                           <div className="bg-secondary/30 rounded-lg p-2 md:p-3 space-y-1 md:space-y-2 text-xs md:text-sm">
-                              <div className="flex justify-between text-muted-foreground text-[10px] md:text-xs">
-                                  <span>Phí dịch vụ (10%)</span>
-                                  <span>- {formatCurrency(fee)} đ</span>
-                              </div>
-                              <div className="flex justify-between items-center pt-1.5 md:pt-2 border-t border-dashed border-muted-foreground/20">
-                                  <span className="font-medium text-foreground">Thực nhận</span>
-                                  <span className="font-bold text-green-600 text-sm md:text-base">{formatCurrency(net)} đ</span>
-                              </div>
-                           </div>
-                      </div>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                     <Label className="text-sm font-medium text-muted-foreground uppercase">Chào giá (VNĐ)</Label>
+                                     <div className="relative">
+                                        <Input 
+                                            value={bid}
+                                            onChange={handleBidChange}
+                                            className="pl-9 h-12 text-lg font-bold bg-secondary/20 border-transparent focus:bg-background focus:border-primary transition-all rounded-xl"
+                                            placeholder="0"
+                                            type="tel" 
+                                        />
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₫</span>
+                                     </div>
+                                     <div className="text-xs text-muted-foreground flex justify-between px-1">
+                                         <span>Phí dịch vụ: {formatCurrency(fee)} đ</span>
+                                         <span className="font-medium text-green-600">Thực nhận: {formatCurrency(net)} đ</span>
+                                     </div>
+                                </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                          {/* Duration */}
-                          <div className="space-y-1.5">
-                               <Label className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase">Hoàn thành</Label>
-                               <div className="relative">
-                                  <Input className="pl-7 md:pl-9 h-9 md:h-10 bg-secondary/30 border-transparent hover:border-primary/30 focus:bg-background rounded-lg text-xs md:text-sm" placeholder="VD: 3 ngày" />
-                                  <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground" />
-                               </div>
-                          </div>
+                                <div className="space-y-2">
+                                     <Label className="text-sm font-medium text-muted-foreground uppercase">Thời gian hoàn thành</Label>
+                                     <div className="relative">
+                                        <Input className="pl-9 h-11 bg-secondary/20 border-transparent focus:bg-background rounded-xl" placeholder="VD: 3 ngày" />
+                                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                     </div>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                     <Label className="text-sm font-medium text-muted-foreground uppercase">Đặt cọc (nếu cần)</Label>
+                                     <div className="relative">
+                                        <Input className="pl-9 h-11 bg-secondary/20 border-transparent focus:bg-background rounded-xl" placeholder="Số tiền..." type="tel" />
+                                        <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                     </div>
+                                </div>
+                            </div>
+                        </div>
 
-                           {/* Deposit */}
-                           <div className="space-y-1.5">
-                              <Label className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase flex justify-between">
-                                  <span>Cọc</span>
-                              </Label>
-                              <div className="relative">
-                                  <Input className="h-9 md:h-10 bg-secondary/30 border-transparent hover:border-orange-200 focus:bg-background focus:border-orange-500 rounded-lg text-xs md:text-sm pl-2" placeholder="Số tiền..." type="tel" />
-                              </div>
-                           </div>
-                      </div>
-                  </div>
-              </div>
-
-          </div>
-      </ScrollArea>
-
-      {/* Footer */}
-      <div className="p-3 md:p-4 bg-white dark:bg-secondary/20 border-t flex justify-between items-center shrink-0 w-full z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] md:shadow-none">
-          <p className="text-[10px] md:text-xs text-muted-foreground hidden md:block">
-              Bằng việc nộp hồ sơ, bạn đồng ý với <span className="text-primary underline cursor-pointer">Điều khoản dịch vụ</span>.
-          </p>
-          <div className="flex gap-2 md:gap-3 w-full md:w-auto">
-               <DialogClose asChild>
-                   <Button variant="ghost" className="rounded-xl flex-1 md:flex-none h-9 md:h-10 text-xs md:text-sm">Hủy</Button>
-               </DialogClose>
-               <Button 
-                className="rounded-xl flex-1 md:flex-none h-9 md:h-10 text-xs md:text-sm bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
-                onClick={() => toast.success("Hồ sơ ứng tuyển đã được gửi thành công!")}
-               >
-                  Gửi hồ sơ
-               </Button>
-          </div>
-      </div>
-    </DialogContent>
+                        {/* Actions */}
+                         <div className="space-y-3 pt-2">
+                             <Button 
+                                className="w-full h-12 rounded-xl text-base bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+                                onClick={() => toast.success("Hồ sơ ứng tuyển đã được gửi thành công!")}
+                            >
+                                Gửi hồ sơ ứng tuyển
+                             </Button>
+                             <Button variant="ghost" className="w-full rounded-xl text-muted-foreground" onClick={onBack}>
+                                 Hủy bỏ
+                             </Button>
+                         </div>
+                    </div>
+                 </div>
+            </div>
+        </ScrollArea>
+    </div>
   );
 };
 
@@ -684,6 +698,133 @@ const FreelancerRegistrationModal = () => (
   </DialogContent>
 );
 
+const PostJobPage = ({ onBack }: { onBack: () => void }) => (
+    <div className="flex flex-col flex-1 h-full min-w-0 bg-background relative z-10">
+        <div className="h-14 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4">
+             <Button 
+                variant="ghost" 
+                size="sm" 
+                className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+                onClick={onBack}
+            >
+                <ChevronLeft className="w-5 h-5" />
+                <span className="font-medium">Quay lại</span>
+            </Button>
+            <div className="text-sm font-semibold text-foreground/80 hidden md:block">
+                Đăng tin tuyển dụng
+            </div>
+        </div>
+        
+        <ScrollArea className="flex-1 w-full">
+            <div className="max-w-4xl mx-auto w-full p-4 md:p-8 pb-32">
+                 <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 md:p-8">
+                    <div className="mb-8">
+                        <h1 className="text-2xl font-bold flex items-center gap-2 mb-2 text-foreground">
+                            <Plus className="w-6 h-6 text-primary" />
+                            Đăng tin tuyển dụng mới
+                        </h1>
+                        <p className="text-muted-foreground">
+                            Điền thông tin chi tiết về công việc để tìm kiếm ứng viên phù hợp nhất.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="title" className="text-base font-semibold">Tiêu đề công việc</Label>
+                            <Input id="title" placeholder="VD: Thiết kế Logo thương hiệu..." className="rounded-xl h-12 bg-secondary/20" />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid gap-2">
+                                <Label className="text-base font-semibold">Ngành nghề</Label>
+                                <Select>
+                                    <SelectTrigger className="rounded-xl h-12 bg-secondary/20">
+                                        <SelectValue placeholder="Chọn ngành nghề" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {jobCategories.filter(c => c.id !== 'all').map(c => (
+                                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label className="text-base font-semibold">Loại hình</Label>
+                                <Select>
+                                    <SelectTrigger className="rounded-xl h-12 bg-secondary/20">
+                                        <SelectValue placeholder="Chọn loại hình" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Dự án ngắn hạn">Dự án ngắn hạn</SelectItem>
+                                        <SelectItem value="Dự án dài hạn">Dự án dài hạn</SelectItem>
+                                        <SelectItem value="Toàn thời gian">Toàn thời gian</SelectItem>
+                                        <SelectItem value="Part-time">Part-time</SelectItem>
+                                        <SelectItem value="Freelance">Freelance</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid gap-2">
+                                <Label htmlFor="budget" className="text-base font-semibold">Ngân sách dự kiến</Label>
+                                <div className="relative">
+                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                    <Input id="budget" placeholder="VD: 5.000.000" className="pl-9 rounded-xl h-12 bg-secondary/20" />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">VNĐ</span>
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="deposit" className="text-base font-semibold text-orange-600 flex items-center gap-2">
+                                    <Shield className="w-4 h-4" /> Yêu cầu cọc (nếu có)
+                                </Label>
+                                <Input id="deposit" placeholder="VD: 30% hoặc 0" className="rounded-xl h-12 border-orange-200 focus:border-orange-500 bg-orange-50/50" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid gap-2">
+                                <Label htmlFor="location" className="text-base font-semibold">Địa điểm làm việc</Label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                    <Input id="location" placeholder="VD: Remote, Hà Nội..." className="pl-9 rounded-xl h-12 bg-secondary/20" />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="deadline" className="text-base font-semibold">Hạn nộp hồ sơ</Label>
+                                 <div className="relative">
+                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                    <Input id="deadline" placeholder="VD: 2 tuần, 30/12..." className="pl-9 rounded-xl h-12 bg-secondary/20" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="reqs" className="text-base font-semibold">Kỹ năng / Yêu cầu chính</Label>
+                            <Input id="reqs" placeholder="VD: Photoshop, Illustrator, Vẽ tay (Cách nhau dấu phẩy)" className="rounded-xl h-12 bg-secondary/20" />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="desc" className="text-base font-semibold">Mô tả chi tiết công việc</Label>
+                            <Textarea id="desc" placeholder="Mô tả chi tiết yêu cầu, quyền lợi, trách nhiệm..." className="rounded-xl min-h-[200px] p-4 text-base bg-secondary/20" />
+                        </div>
+                    </div>
+
+                         <div className="flex justify-end gap-4 pt-6 border-t mt-4">
+                            <Button variant="outline" size="lg" className="rounded-xl px-8 h-12" onClick={onBack}>Hủy</Button>
+                            <Button size="lg" className="rounded-xl px-8 h-12 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20" onClick={() => {
+                                toast.success("Tin của bạn đã được gửi đi phê duyệt!");
+                                onBack();
+                            }}>
+                                Đăng tin ngay
+                            </Button>
+                        </div>
+                 </div>
+            </div>
+        </ScrollArea>
+    </div>
+);
+
 export const JobsFeature: React.FC = () => {
   const navigate = useNavigate();
   const { setIsCollapsed } = useLayoutContext();
@@ -691,11 +832,13 @@ export const JobsFeature: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [selectedJobForApply, setSelectedJobForApply] = useState<any>(null);
-  const itemsPerPage = 5;
+  const itemsPerPage = 20;
 
   const handleNavigate = (feature: FeatureType) => {
     setSelectedJob(null);
+    setIsCreatingJob(false);
     
     if (feature === 'chat') {
       setIsCollapsed(true);
@@ -750,6 +893,20 @@ export const JobsFeature: React.FC = () => {
     if (listElement) listElement.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // --- Render Apply Job View ---
+  if (selectedJobForApply) {
+      return (
+          <ApplyJobPage job={selectedJobForApply} onBack={() => setSelectedJobForApply(null)} />
+      )
+  }
+
+  // --- Render Create Job View ---
+  if (isCreatingJob) {
+      return (
+          <PostJobPage onBack={() => setIsCreatingJob(false)} />
+      )
+  }
+
   return (
     <div className="h-full w-full bg-slate-50/50 dark:bg-background text-foreground overflow-y-auto relative font-sans">
       
@@ -786,15 +943,13 @@ export const JobsFeature: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3 min-w-fit">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button className="rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 border-0">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Đăng tin
-                    </Button>
-                  </DialogTrigger>
-                  <PostJobModal />
-                </Dialog>
+                <Button 
+                    className="rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 border-0"
+                    onClick={() => setIsCreatingJob(true)}
+                >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Đăng tin
+                </Button>
             </div>
         </div>
       </div>
@@ -837,7 +992,7 @@ export const JobsFeature: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div id="job-list-top" className="flex flex-col md:flex-row items-center justify-between gap-4 sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 py-2 bg-slate-50/50 dark:bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div id="job-list-top" className="flex flex-col md:flex-row items-center justify-between gap-4 sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 py-2 bg-slate-50/50 dark:bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 scroll-mt-[calc(4rem+env(safe-area-inset-top))]">
             <ScrollArea className="w-full max-w-[calc(100vw-32px)]">
                 <div className="flex items-center gap-2">
                     {jobCategories.map((cat) => (
@@ -951,10 +1106,7 @@ export const JobsFeature: React.FC = () => {
 
       </div>
 
-      {/* Apply Job Modal */}
-      <Dialog open={!!selectedJobForApply} onOpenChange={(open) => !open && setSelectedJobForApply(null)}>
-        {selectedJobForApply && <ApplyJobModal job={selectedJobForApply} />}
-      </Dialog>
+
 
       {/* Job Detail Dialog */}
       <Dialog open={!!selectedJob} onOpenChange={(open) => !open && setSelectedJob(null)}>

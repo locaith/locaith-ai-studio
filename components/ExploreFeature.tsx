@@ -220,18 +220,8 @@ export const ExploreFeature: React.FC = () => {
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
             <div className="font-bold text-lg tracking-tight text-foreground">Khám phá Locaith AI</div>
             <div className="flex items-center gap-3">
-                {isAuthenticated && (
-                  <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/50 text-xs font-medium">
-                      <span className="text-muted-foreground">Số dư:</span>
-                      <span className="text-primary font-bold">1,250 Credits</span>
-                  </div>
-                )}
                 <Button variant="ghost" className="text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent">
                     Locaith của tôi
-                </Button>
-                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_10px_hsla(var(--primary)/0.3)] border border-primary/20">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Tạo mới
                 </Button>
             </div>
         </div>

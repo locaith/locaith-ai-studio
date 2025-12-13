@@ -9,10 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { HireExpertModal } from './HireExpertModal';
-import { RegisterExpertModal } from './RegisterExpertModal';
 import { GlobalSidebar, FeatureType } from './GlobalSidebar';
 import { useNavigate } from 'react-router-dom';
 import { useLayoutContext } from '../src/context/LayoutContext';
@@ -220,14 +219,469 @@ const mockExperts = [
 
 
 
+const RegisterExpertPage = ({ onBack }: { onBack: () => void }) => {
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        // Mock API call
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setLoading(false);
+        toast.success("Đăng ký thành công! Hồ sơ của bạn đang được xét duyệt.", {
+            description: "Chúng tôi sẽ liên hệ lại trong vòng 24h làm việc."
+        });
+        onBack();
+    };
+
+    return (
+        <div className="flex flex-col flex-1 h-full min-w-0 bg-background relative z-10">
+            {/* Header */}
+            <div className="h-14 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4">
+                 <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+                    onClick={onBack}
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                    <span className="font-medium">Quay lại</span>
+                </Button>
+                <div className="text-sm font-semibold text-foreground/80 hidden md:block">
+                    Đăng ký trở thành Chuyên gia
+                </div>
+            </div>
+
+            <ScrollArea className="flex-1 w-full">
+                <div className="max-w-6xl mx-auto w-full p-4 md:p-8 pb-32">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Main Form (8 cols) */}
+                        <div className="lg:col-span-8 space-y-8">
+                             {/* Intro Section */}
+                            <div className="space-y-2">
+                                <h1 className="text-3xl font-bold tracking-tight">Hồ sơ chuyên gia</h1>
+                                <p className="text-muted-foreground text-lg">
+                                    Hoàn tất thông tin để tham gia mạng lưới chuyên gia hàng đầu tại Locaith.
+                                </p>
+                            </div>
+
+                            <form id="register-form" onSubmit={handleSubmit} className="space-y-8">
+                                {/* Section 1: Personal Info */}
+                                <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 md:p-8 space-y-6">
+                                    <div className="flex items-center gap-3 pb-4 border-b border-border/40">
+                                        <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
+                                            <User className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-xl">Thông tin cá nhân</h3>
+                                            <p className="text-sm text-muted-foreground">Thông tin cơ bản để chúng tôi liên hệ với bạn.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="fullname" className="text-base font-semibold">Họ và tên <span className="text-red-500">*</span></Label>
+                                            <Input id="fullname" placeholder="Nguyễn Văn A" required className="h-11 rounded-xl bg-secondary/10" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="phone" className="text-base font-semibold">Số điện thoại <span className="text-red-500">*</span></Label>
+                                            <Input id="phone" placeholder="0912..." required className="h-11 rounded-xl bg-secondary/10" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="email" className="text-base font-semibold">Email liên hệ <span className="text-red-500">*</span></Label>
+                                            <Input id="email" type="email" placeholder="contact@example.com" required className="h-11 rounded-xl bg-secondary/10" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="linkedin" className="text-base font-semibold flex items-center gap-1">
+                                                 LinkedIn / Portfolio
+                                            </Label>
+                                            <Input id="linkedin" placeholder="linkedin.com/in/..." className="h-11 rounded-xl bg-secondary/10" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section 2: Professional Profile */}
+                                <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 md:p-8 space-y-6">
+                                    <div className="flex items-center gap-3 pb-4 border-b border-border/40">
+                                        <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400">
+                                            <Briefcase className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-xl">Hồ sơ chuyên môn</h3>
+                                            <p className="text-sm text-muted-foreground">Kinh nghiệm và kỹ năng của bạn.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="role" className="text-base font-semibold">Chức danh hiển thị <span className="text-red-500">*</span></Label>
+                                            <Input id="role" placeholder="VD: Senior AI Engineer" required className="h-11 rounded-xl bg-secondary/10" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="category" className="text-base font-semibold">Lĩnh vực chuyên môn <span className="text-red-500">*</span></Label>
+                                            <Select>
+                                                <SelectTrigger className="h-11 rounded-xl bg-secondary/10">
+                                                    <SelectValue placeholder="Chọn lĩnh vực" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {expertCategories.filter(c => c.id !== 'all').map(cat => (
+                                                        <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="company" className="text-base font-semibold">Công ty hiện tại</Label>
+                                            <div className="relative">
+                                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                                <Input id="company" placeholder="VD: Google, Microsoft..." className="pl-10 h-11 rounded-xl bg-secondary/10" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exp" className="text-base font-semibold">Số năm kinh nghiệm</Label>
+                                            <Input id="exp" type="number" min="0" placeholder="5" className="h-11 rounded-xl bg-secondary/10" />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="bio" className="text-base font-semibold">Giới thiệu bản thân & Thành tích <span className="text-red-500">*</span></Label>
+                                        <Textarea 
+                                            id="bio" 
+                                            placeholder="Mô tả kinh nghiệm, dự án đã thực hiện và thế mạnh của bạn..." 
+                                            className="min-h-[150px] rounded-xl bg-secondary/10 resize-y p-4 text-base leading-relaxed" 
+                                            required
+                                        />
+                                        <p className="text-xs text-muted-foreground text-right">Tối thiểu 100 ký tự</p>
+                                    </div>
+                                </div>
+
+                                {/* Section 3: Services & Rates */}
+                                <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 md:p-8 space-y-6">
+                                    <div className="flex items-center gap-3 pb-4 border-b border-border/40">
+                                        <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-xl text-green-600 dark:text-green-400">
+                                            <DollarSign className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-xl">Dịch vụ & Chi phí</h3>
+                                            <p className="text-sm text-muted-foreground">Định giá dịch vụ của bạn.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="price" className="text-base font-semibold">Mức giá tham khảo (VNĐ/giờ)</Label>
+                                            <Input id="price" placeholder="1.000.000" className="h-11 rounded-xl bg-secondary/10" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="deposit" className="text-base font-semibold">Yêu cầu đặt cọc (VNĐ)</Label>
+                                            <Input id="deposit" placeholder="500.000" className="h-11 rounded-xl bg-secondary/10" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="p-5 bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20 rounded-xl flex gap-4">
+                                        <Award className="w-6 h-6 text-orange-500 shrink-0 mt-0.5" />
+                                        <div className="space-y-1">
+                                            <h4 className="font-bold text-base text-orange-800 dark:text-orange-300">Chứng nhận & Xác minh</h4>
+                                            <p className="text-sm text-orange-700/80 dark:text-orange-400/80 leading-relaxed">
+                                                Để tăng độ uy tín và được gắn huy hiệu <span className="font-semibold">Verified</span>, vui lòng chuẩn bị sẵn CV, Bằng cấp và các chứng chỉ liên quan. Chúng tôi sẽ yêu cầu bổ sung ở bước xác minh sau khi bạn gửi hồ sơ.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex flex-col gap-4 pt-4">
+                                     <div className="flex items-start space-x-3 p-4 bg-secondary/20 rounded-xl">
+                                        <Checkbox id="terms" required className="mt-1" />
+                                        <Label
+                                            htmlFor="terms"
+                                            className="text-sm font-normal leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                        >
+                                            Tôi cam kết thông tin cung cấp là chính xác và đồng ý với <span className="text-primary hover:underline cursor-pointer font-medium">Điều khoản dịch vụ</span> cũng như <span className="text-primary hover:underline cursor-pointer font-medium">Quy tắc ứng xử</span> dành cho chuyên gia trên Locaith.
+                                        </Label>
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <Button variant="outline" className="flex-1 h-12 rounded-xl text-base" onClick={onBack} type="button">Hủy bỏ</Button>
+                                        <Button 
+                                            type="submit" 
+                                            className="flex-[2] h-12 rounded-xl text-base bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.01] transition-transform"
+                                            disabled={loading}
+                                        >
+                                            {loading ? "Đang xử lý..." : "Gửi hồ sơ đăng ký"}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                            </form>
+                        </div>
+
+                        {/* Sidebar Info (4 cols) */}
+                        <div className="lg:col-span-4 space-y-6">
+                            <div className="sticky top-24 space-y-6">
+                                {/* Benefits Card */}
+                                <div className="bg-slate-900 text-slate-50 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                                     <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600/20 to-purple-600/20 z-0" />
+                                     <div className="relative z-10">
+                                         <div className="flex items-center gap-3 mb-6 text-blue-400">
+                                            <Shield className="w-8 h-8" />
+                                            <span className="font-bold text-lg tracking-wide">Locaith Expert</span>
+                                        </div>
+                                        <h3 className="text-2xl font-bold mb-2">Quyền lợi thành viên</h3>
+                                        <p className="text-slate-400 text-sm mb-6">Gia nhập mạng lưới chuyên gia hàng đầu và mở rộng cơ hội nghề nghiệp.</p>
+                                        
+                                        <ul className="space-y-4">
+                                            {[
+                                                "Tiếp cận hàng ngàn dự án hấp dẫn mỗi tháng",
+                                                "Thanh toán đảm bảo, minh bạch 100%",
+                                                "Xây dựng thương hiệu cá nhân chuyên nghiệp",
+                                                "Hỗ trợ pháp lý và giải quyết tranh chấp",
+                                                "Tham gia cộng đồng Elite Experts"
+                                            ].map((item, i) => (
+                                                <li key={i} className="flex items-start gap-3 text-sm">
+                                                    <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+                                                    <span className="text-slate-200">{item}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                     </div>
+                                </div>
+
+                                {/* Support Card */}
+                                <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6">
+                                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                        <Info className="w-5 h-5 text-primary" /> Hỗ trợ
+                                    </h3>
+                                    <div className="space-y-4 text-sm">
+                                        <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
+                                            <Mail className="w-5 h-5 text-muted-foreground" />
+                                            <div>
+                                                <div className="font-medium">Email hỗ trợ</div>
+                                                <div className="text-muted-foreground">experts@locaith.com</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
+                                            <Phone className="w-5 h-5 text-muted-foreground" />
+                                            <div>
+                                                <div className="font-medium">Hotline</div>
+                                                <div className="text-muted-foreground">1900 6868 (8:00 - 18:00)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </ScrollArea>
+        </div>
+    );
+};
+
+const HireExpertPage = ({ expert, onBack }: { expert: typeof mockExperts[0]; onBack: () => void }) => {
+    const [loading, setLoading] = useState(false);
+    const [budget, setBudget] = useState("");
+    const [duration, setDuration] = useState("");
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        // Mock API call
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setLoading(false);
+        toast.success("Đã gửi lời mời thuê thành công! Chuyên gia sẽ phản hồi sớm.");
+        onBack();
+    };
+
+    return (
+        <div className="flex flex-col flex-1 h-full min-w-0 bg-background relative z-10 animate-fade-in-up">
+            {/* Header */}
+            <div className="h-14 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4 pt-[env(safe-area-inset-top)] mt-[env(safe-area-inset-top)]">
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+                    onClick={onBack}
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                    <span className="font-medium">Quay lại</span>
+                </Button>
+                <div className="text-sm font-semibold text-foreground/80 hidden md:block">
+                    Thuê chuyên gia: {expert.name}
+                </div>
+            </div>
+
+            <ScrollArea className="flex-1 w-full">
+                <div className="max-w-5xl mx-auto w-full p-4 md:p-8 pb-32">
+                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Left: Project Form */}
+                        <div className="lg:col-span-8 space-y-8">
+                            <div className="space-y-2">
+                                <h1 className="text-3xl font-bold tracking-tight">Thông tin dự án</h1>
+                                <p className="text-muted-foreground text-lg">
+                                    Mô tả chi tiết yêu cầu của bạn để chuyên gia có thể nắm bắt và phản hồi chính xác nhất.
+                                </p>
+                            </div>
+
+                            <form id="hire-form" onSubmit={handleSubmit} className="space-y-8">
+                                <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 md:p-8 space-y-6">
+                                    <div className="flex items-center gap-3 pb-4 border-b border-border/40">
+                                        <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
+                                            <Briefcase className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-xl">Chi tiết công việc</h3>
+                                            <p className="text-sm text-muted-foreground">Thông tin cơ bản về dự án cần thuê.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="project-name" className="text-base font-semibold">Tên dự án <span className="text-red-500">*</span></Label>
+                                            <Input id="project-name" placeholder="Ví dụ: Xây dựng hệ thống CRM, Thiết kế Logo..." required className="h-12 rounded-xl bg-secondary/10 text-base" />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="description" className="text-base font-semibold">Mô tả yêu cầu <span className="text-red-500">*</span></Label>
+                                            <Textarea 
+                                                id="description" 
+                                                className="min-h-[200px] rounded-xl border-muted-foreground/20 focus:border-primary resize-y bg-secondary/10 text-base leading-relaxed p-4 shadow-sm"
+                                                placeholder="Mô tả chi tiết về phạm vi công việc, mục tiêu, và các yêu cầu kỹ thuật cụ thể..."
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-base font-semibold">Tài liệu đính kèm</Label>
+                                            <div className="border-2 border-dashed border-muted-foreground/20 rounded-xl p-8 flex flex-col items-center justify-center gap-4 bg-secondary/5 hover:bg-secondary/10 transition-colors cursor-pointer group">
+                                                <div className="bg-secondary p-3 rounded-full group-hover:scale-110 transition-transform">
+                                                    <Briefcase className="w-6 h-6 text-muted-foreground" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-sm font-medium text-foreground">
+                                                        <span className="text-primary hover:underline">Tải lên</span> tài liệu mô tả chi tiết
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-1">Hỗ trợ PDF, DOCX, JPG, PNG (Tối đa 20MB)</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* Right: Expert & Budget */}
+                        <div className="lg:col-span-4 space-y-6">
+                            {/* Expert Card */}
+                            <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 space-y-4">
+                                <h3 className="font-bold text-lg flex items-center gap-2">
+                                    <User className="w-5 h-5 text-primary" />
+                                    Chuyên gia được chọn
+                                </h3>
+                                <div className="flex items-start gap-4 p-4 bg-secondary/10 rounded-xl border border-border/50">
+                                    <Avatar className="h-12 w-12 rounded-xl border-2 border-background shadow-sm">
+                                        <AvatarImage src={expert.image} alt={expert.name} className="object-cover" />
+                                        <AvatarFallback>{expert.avatar}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                        <div className="font-bold text-sm truncate">{expert.name}</div>
+                                        <div className="text-xs text-muted-foreground truncate">{expert.role}</div>
+                                        <div className="mt-1 text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md w-fit">
+                                            {expert.price}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Budget & Timeline */}
+                            <div className="bg-background rounded-2xl border border-border/50 shadow-sm p-6 space-y-6">
+                                <h3 className="font-bold text-lg flex items-center gap-2">
+                                    <DollarSign className="w-5 h-5 text-green-600" />
+                                    Ngân sách & Thời gian
+                                </h3>
+                                
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium text-muted-foreground uppercase">Ngân sách dự kiến (VNĐ)</Label>
+                                        <div className="relative">
+                                            <Input 
+                                                value={budget}
+                                                onChange={(e) => setBudget(e.target.value)}
+                                                className="pl-9 h-12 text-lg font-bold bg-secondary/20 border-transparent focus:bg-background focus:border-primary transition-all rounded-xl"
+                                                placeholder="0"
+                                                type="number" 
+                                            />
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₫</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium text-muted-foreground uppercase">Thời gian dự kiến</Label>
+                                        <div className="relative">
+                                            <Input 
+                                                value={duration}
+                                                onChange={(e) => setDuration(e.target.value)}
+                                                className="pl-9 h-11 bg-secondary/20 border-transparent focus:bg-background rounded-xl" 
+                                                placeholder="VD: 2 tuần, 1 tháng..." 
+                                            />
+                                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium text-muted-foreground uppercase">Đặt cọc (nếu có)</Label>
+                                        <div className="relative">
+                                            <Input 
+                                                className="pl-9 h-11 bg-secondary/20 border-transparent focus:bg-background rounded-xl" 
+                                                placeholder={expert.deposit || "Thỏa thuận"} 
+                                                readOnly={!!expert.deposit}
+                                            />
+                                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        </div>
+                                        {expert.deposit && <p className="text-xs text-muted-foreground">Chuyên gia yêu cầu đặt cọc tối thiểu {expert.deposit}</p>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="space-y-3 pt-2">
+                                <Button 
+                                    className="w-full h-12 rounded-xl text-base bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+                                    onClick={handleSubmit}
+                                    disabled={loading}
+                                >
+                                    {loading ? "Đang gửi..." : "Gửi lời mời hợp tác"}
+                                </Button>
+                                <Button variant="ghost" className="w-full rounded-xl text-muted-foreground" onClick={onBack}>
+                                    Hủy bỏ
+                                </Button>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+            </ScrollArea>
+        </div>
+    );
+};
+
 export const ExpertsFeature = () => {
   const navigate = useNavigate();
   const { setIsCollapsed } = useLayoutContext();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [hiringExpert, setHiringExpert] = useState<typeof mockExperts[0] | null>(null);
   const [selectedExpert, setSelectedExpert] = useState<typeof mockExperts[0] | null>(null);
+
+  // --- Render Register Page ---
+  if (isRegistering) {
+      return <RegisterExpertPage onBack={() => setIsRegistering(false)} />;
+  }
+
+  // --- Render Hire Expert Page ---
+  if (hiringExpert) {
+      return <HireExpertPage expert={hiringExpert} onBack={() => setHiringExpert(null)} />;
+  }
 
   const handleNavigate = (feature: FeatureType) => {
     setSelectedExpert(null);
@@ -291,12 +745,11 @@ export const ExpertsFeature = () => {
             <div className="flex items-center gap-3 min-w-fit">
                 <Button 
                     className="rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 border-0"
-                    onClick={() => setIsRegisterOpen(true)}
+                    onClick={() => setIsRegistering(true)}
                 >
                     <Plus className="w-4 h-4 mr-2" />
                     Đăng ký
                 </Button>
-                <RegisterExpertModal open={isRegisterOpen} onOpenChange={setIsRegisterOpen} />
             </div>
         </div>
       </div>
@@ -714,13 +1167,6 @@ export const ExpertsFeature = () => {
         </DialogContent>
       </Dialog>
 
-      {hiringExpert && (
-        <HireExpertModal 
-            expert={hiringExpert} 
-            open={!!hiringExpert} 
-            onOpenChange={(open) => !open && setHiringExpert(null)} 
-        />
-      )}
     </div>
   );
 };

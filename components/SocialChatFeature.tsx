@@ -72,7 +72,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 import { supabase } from '../src/lib/supabase';
-import { useAuth } from '../src/hooks/useAuth';
+import { useAuthContext as useAuth } from '../src/components/AuthProvider';
 import { useLayoutContext } from '../src/context/LayoutContext';
 
 // --- Types matching Supabase Schema ---
@@ -123,6 +123,7 @@ interface Message {
 
 export const SocialChatFeature = () => {
   const { user } = useAuth();
+  console.log('SocialChatFeature rendering. User:', user?.id);
   const { setAuthModalOpen, setUnreadCount, refreshUnreadCount, unreadCount } = useLayoutContext();
   
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -203,6 +204,14 @@ export const SocialChatFeature = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const groupAvatarUpdateInputRef = useRef<HTMLInputElement>(null);
+
+  const scrollToBottom = () => {
+      setTimeout(() => {
+          if (scrollRef.current) {
+              scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          }
+      }, 100);
+  };
 
   const handleGroupAvatarUpdate = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -347,6 +356,11 @@ export const SocialChatFeature = () => {
   useEffect(() => {
     contactsRef.current = contacts;
     
+    // Save to cache
+    if (user && contacts.length > 0) {
+        localStorage.setItem(`chat_contacts_${user.id}`, JSON.stringify(contacts));
+    }
+    
     // Sync global unread count with local contacts state to ensure consistency
     // This fixes the issue where sidebar badge differs from chat list or persists incorrectly
     const totalUnread = contacts.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
@@ -379,11 +393,29 @@ export const SocialChatFeature = () => {
   
   // --- 1. Fetch Contacts (Defined as function to be reusable) ---
   const fetchContacts = React.useCallback(async () => {
+    console.log('fetchContacts called. User:', user?.id);
     if (!user) return;
-    // Don't show loading if we already have contacts (silent refresh)
+    
+    // 0. Load from cache immediately
     if (contactsRef.current.length === 0) {
-        setIsLoadingContacts(true);
+        const cached = localStorage.getItem(`chat_contacts_${user.id}`);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setContacts(parsed);
+                    // Don't show loading if we have cache
+                } else {
+                    setIsLoadingContacts(true);
+                }
+            } catch (e) {
+                setIsLoadingContacts(true);
+            }
+        } else {
+            setIsLoadingContacts(true);
+        }
     }
+
     try {
       // 1. Fetch direct contacts
       const { data: contactsData, error: contactsError } = await supabase
@@ -563,15 +595,17 @@ export const SocialChatFeature = () => {
   useEffect(() => {
     fetchContacts();
     
+    if (!user) return;
+
     // Subscribe to new contacts
     const channel = supabase.channel('contacts_list')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts', filter: `user_id=eq.${user?.id}` }, () => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts', filter: `user_id=eq.${user.id}` }, () => {
             fetchContacts();
         })
         .subscribe();
 
     // Subscribe to messages to update unread counts and contact list realtime
-    const messageChannel = supabase.channel('global_messages_listener')
+    const messageChannel = supabase.channel(`user_global_messages:${user.id}`)
         .on('postgres_changes', { 
             event: 'INSERT', 
             schema: 'public', 
@@ -584,6 +618,33 @@ export const SocialChatFeature = () => {
             // Check if contact exists using ref to avoid stale closure
             const exists = contactsRef.current.some(c => c.id === senderId);
 
+            // 1. If we are currently chatting with this sender, we handle it immediately
+            if (selectedContactIdRef.current === senderId) {
+                 // Stop typing indicator immediately
+                 setTypingUsers(prev => {
+                     const newPrev = { ...prev };
+                     delete newPrev[senderId];
+                     return newPrev;
+                 });
+                 
+                 // Handle active chat message immediately
+                 setMessages(prev => {
+                      if (prev.some(m => m.id === newMsg.id)) return prev;
+                      const updated = [...prev, newMsg];
+                      
+                      // Update Cache
+                      setMessageCache(cache => ({
+                          ...cache,
+                          [senderId]: updated
+                      }));
+                      
+                      return updated;
+                 });
+                 scrollToBottom();
+                 supabase.rpc('mark_dm_read', { _sender_id: senderId });
+            }
+
+            // 2. Update Contacts List (always do this to keep last message fresh)
             if (!exists) {
                 // New conversation! Fetch profile and add to list optimistically
                 const { data: profile } = await supabase
@@ -596,19 +657,27 @@ export const SocialChatFeature = () => {
                     const newContact: Contact = {
                         id: senderId,
                         profile: profile,
-                        unreadCount: 1,
+                        unreadCount: 1, // Will be 0 if selected (handled below)
                         lastMessage: newMsg.type === 'text' ? newMsg.content : `[${newMsg.type}]`,
                         lastMessageTime: newMsg.created_at,
                         status: 'accepted'
                     };
                     
+                    // If it's the current chat, unread is 0
+                    if (selectedContactIdRef.current === senderId) {
+                        newContact.unreadCount = 0;
+                    }
+
                     setContacts(prev => {
                         // Prevent duplicates in case of race conditions
                         if (prev.some(c => c.id === senderId)) return prev;
                         return [newContact, ...prev];
                     });
-                    setUnreadCount(prev => prev + 1);
-                    toast.info(`Tin nhắn mới từ ${profile.full_name}`);
+                    
+                    if (selectedContactIdRef.current !== senderId) {
+                        setUnreadCount(prev => prev + 1);
+                        toast.info(`Tin nhắn mới từ ${profile.full_name}`);
+                    }
                 } else {
                     // Fallback if profile fetch fails
                     fetchContacts();
@@ -617,7 +686,7 @@ export const SocialChatFeature = () => {
                 // Optimistic update for existing contact
                 setContacts(prev => {
                     const idx = prev.findIndex(c => c.id === senderId);
-                    if (idx === -1) return prev; // Should not happen given exists check but safe
+                    if (idx === -1) return prev; 
                     
                     const contact = prev[idx];
                     const isCurrentChat = senderId === selectedContactIdRef.current;
@@ -638,9 +707,6 @@ export const SocialChatFeature = () => {
                 // Update global unread count
                 if (senderId !== selectedContactIdRef.current) {
                     setUnreadCount(prev => prev + 1);
-                } else {
-                    // Mark read in backend if we are in the chat
-                    supabase.rpc('mark_dm_read', { _sender_id: senderId });
                 }
             }
         })
@@ -871,48 +937,41 @@ export const SocialChatFeature = () => {
     const isGroup = selectedContact?.profile.role === 'Group';
     const channelName = isGroup ? `group:${selectedContactId}` : `chat:${[user.id, selectedContactId].sort().join('_')}`;
     
-    const channel = supabase.channel(channelName)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages',
-        filter: isGroup ? `group_id=eq.${selectedContactId}` : `receiver_id=eq.${user.id}`
-      }, async (payload) => {
-        const newMsg = payload.new as Message;
-        
-        const isRelevant = isGroup ? newMsg.group_id === selectedContactId : newMsg.sender_id === selectedContactId;
+    let channel = supabase.channel(channelName);
 
-        if (isRelevant) {
-          // Stop typing indicator immediately
-          setTypingUsers(prev => {
-              const newPrev = { ...prev };
-              delete newPrev[newMsg.sender_id];
-              return newPrev;
-          });
+    // Only subscribe to incoming messages here if it's a GROUP
+    // For DMs, the Global Listener handles incoming messages to ensure reliability
+    if (isGroup) {
+        channel = channel.on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'messages',
+            filter: `group_id=eq.${selectedContactId}`
+        }, async (payload) => {
+            const newMsg = payload.new as Message;
+            if (newMsg.group_id !== selectedContactId) return;
 
-          setMessages(prev => {
-              if (prev.some(m => m.id === newMsg.id)) return prev;
-              const updated = [...prev, newMsg];
-              
-              // Update Cache as well
-              setMessageCache(cache => ({
-                  ...cache,
-                  [selectedContactId]: updated
-              }));
-              
-              return updated;
-          });
-          scrollToBottom();
-          
-          if (isGroup) {
-              localStorage.setItem(`group_read_${selectedContactId}_${user.id}`, new Date().toISOString());
-              supabase.rpc('mark_group_read', { _group_id: selectedContactId });
-          } else {
-              supabase.rpc('mark_dm_read', { _sender_id: selectedContactId });
-          }
-          // No need to refresh global unread count as we are viewing it (it remains 0 for this chat)
-        }
-      })
+             // Stop typing indicator
+             setTypingUsers(prev => {
+                 const newPrev = { ...prev };
+                 delete newPrev[newMsg.sender_id];
+                 return newPrev;
+             });
+
+             setMessages(prev => {
+                 if (prev.some(m => m.id === newMsg.id)) return prev;
+                 const updated = [...prev, newMsg];
+                 setMessageCache(cache => ({ ...cache, [selectedContactId]: updated }));
+                 return updated;
+             });
+             scrollToBottom();
+             
+             localStorage.setItem(`group_read_${selectedContactId}_${user.id}`, new Date().toISOString());
+             supabase.rpc('mark_group_read', { _group_id: selectedContactId });
+        });
+    }
+
+    channel = channel
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -1242,14 +1301,6 @@ export const SocialChatFeature = () => {
       } else {
           toast.info("Vui lòng kết bạn để bắt đầu trò chuyện");
       }
-  };
-
-  const scrollToBottom = () => {
-      setTimeout(() => {
-          if (scrollRef.current) {
-              scrollRef.current.scrollIntoView({ behavior: 'smooth' });
-          }
-      }, 100);
   };
 
   // --- 3. Actions ---
@@ -2130,8 +2181,18 @@ export const SocialChatFeature = () => {
             {/* Contact List */}
             <ScrollArea className="flex-1">
               <div className="flex flex-col">
-                {isLoadingContacts ? (
-                    <div className="flex justify-center p-4"><Loader2 className="animate-spin text-muted-foreground" /></div>
+                {isLoadingContacts && filteredContacts.length === 0 ? (
+                    <div className="p-4 space-y-4">
+                         {[1,2,3,4,5].map(i => (
+                             <div key={i} className="flex items-center gap-3">
+                                 <div className="h-12 w-12 rounded-full bg-secondary/50 animate-pulse shrink-0" />
+                                 <div className="flex-1 space-y-2">
+                                     <div className="h-4 w-24 bg-secondary/50 rounded animate-pulse" />
+                                     <div className="h-3 w-32 bg-secondary/50 rounded animate-pulse" />
+                                 </div>
+                             </div>
+                         ))}
+                    </div>
                 ) : filteredContacts.length === 0 ? (
                     <div className="text-center p-8 text-muted-foreground text-sm">
                         {activeTab === 'unread' ? 'Không có tin nhắn chưa đọc.' : (

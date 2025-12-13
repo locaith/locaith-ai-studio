@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Zap, Globe, MessageSquare, PenTool, BookOpen, Code, User, Briefcase, TrendingUp, MoreHorizontal, Star, LayoutGrid, Download, Database, Cpu, Box, Layers, Server, Shield, Check, FileText, Palette, Languages, Image as ImageIcon, Monitor, Home, Feather, Telescope, ArrowRight, Workflow, AppWindow, Sofa, Mic, Sparkles, Headphones, Flame, Clock, ChevronRight } from 'lucide-react';
+import { Search, Plus, Zap, Globe, MessageSquare, PenTool, BookOpen, Code, User, Briefcase, TrendingUp, MoreHorizontal, Star, LayoutGrid, Download, Database, Cpu, Box, Layers, Server, Shield, Check, FileText, Palette, Languages, Image as ImageIcon, Monitor, Home, Feather, Telescope, ArrowRight, ArrowLeft, Workflow, AppWindow, Sofa, Mic, Sparkles, Headphones, Flame, Clock, ChevronRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,118 @@ const categories = [
   { id: "business", label: "Kinh doanh", icon: <Briefcase className="w-4 h-4" /> },
   { id: "education", label: "Giáo dục", icon: <BookOpen className="w-4 h-4" /> },
 ];
+
+const mockInstalledApps = [
+    {
+        id: 'ia1',
+        name: "Dashboard - Tổng quan",
+        icon: <img src="/logo-locaith.png" alt="Locaith" className="h-10 w-10 rounded-lg object-cover" />,
+        purchaseDate: "10/05/2024 14:30",
+        price: "Miễn phí",
+        status: "Đang sử dụng"
+    },
+    {
+        id: 'ia2',
+        name: "Xây dựng Website",
+        icon: <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600"><LayoutGrid className="h-6 w-6" /></div>,
+        purchaseDate: "12/06/2024 09:15",
+        price: "300 Credits",
+        status: "Đã mua"
+    },
+    {
+        id: 'ia3',
+        name: "Thời trang AI",
+        icon: <div className="h-10 w-10 rounded-lg bg-pink-100 flex items-center justify-center text-pink-600"><Sofa className="h-6 w-6" /></div>,
+        purchaseDate: "15/06/2024 16:45",
+        price: "500 Credits",
+        status: "Đã mua"
+    },
+    {
+        id: 'ia4',
+        name: "Thiết kế Nội thất",
+        icon: <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600"><Box className="h-6 w-6" /></div>,
+        purchaseDate: "20/06/2024 10:00",
+        price: "Miễn phí",
+        status: "Đang sử dụng"
+    },
+    {
+        id: 'ia5',
+        name: "Soạn thảo Văn bản",
+        icon: <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600"><FileText className="h-6 w-6" /></div>,
+        purchaseDate: "22/06/2024 08:30",
+        price: "100 Credits",
+        status: "Đã mua"
+    }
+];
+
+const InstalledAppsPage = ({ onBack }: { onBack: () => void }) => {
+    return (
+        <div className="h-full w-full bg-background animate-fade-in text-foreground">
+             <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 pt-[env(safe-area-inset-top)]">
+                <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full hover:bg-secondary">
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex items-center gap-2">
+                         <div className="bg-primary/10 text-primary p-1.5 rounded-lg">
+                            <Briefcase className="h-5 w-5" />
+                        </div>
+                        <h1 className="text-lg font-bold">Ứng dụng đã cài đặt</h1>
+                    </div>
+                </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+                <Card className="overflow-hidden border-border/50 shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-muted/50 text-muted-foreground uppercase text-xs font-semibold">
+                                <tr>
+                                    <th className="px-6 py-4">Ứng dụng</th>
+                                    <th className="px-6 py-4">Trạng thái</th>
+                                    <th className="px-6 py-4">Thời gian</th>
+                                    <th className="px-6 py-4 text-right">Giá tiền</th>
+                                    <th className="px-6 py-4 text-right">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/50">
+                                {mockInstalledApps.map((app) => (
+                                    <tr key={app.id} className="hover:bg-muted/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                {app.icon}
+                                                <span className="font-medium text-foreground">{app.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                             <Badge variant={app.status === 'Đang sử dụng' ? 'default' : 'secondary'} className={cn("font-normal", app.status === 'Đang sử dụng' ? "bg-green-500/10 text-green-600 hover:bg-green-500/20" : "")}>
+                                                {app.status}
+                                            </Badge>
+                                        </td>
+                                        <td className="px-6 py-4 text-muted-foreground">
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                {app.purchaseDate}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-medium">
+                                            {app.price}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
+                                                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            </div>
+        </div>
+    );
+};
 
 const byLocaithApps: any[] = [
   {
@@ -368,6 +480,7 @@ export const AppMarketplaceFeature: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [balance, setBalance] = useState(1250);
+  const [showInstalledApps, setShowInstalledApps] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -389,6 +502,10 @@ export const AppMarketplaceFeature: React.FC = () => {
         toast.success("Đã thêm vào thư viện của bạn");
     }
   };
+
+  if (showInstalledApps) {
+    return <InstalledAppsPage onBack={() => setShowInstalledApps(false)} />;
+  }
 
   return (
     <div className="h-full w-full bg-slate-50/50 dark:bg-background text-foreground overflow-y-auto relative font-sans">
@@ -413,13 +530,13 @@ export const AppMarketplaceFeature: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3 min-w-fit">
-                {isAuthenticated && (
+                {/* {isAuthenticated && (
                     <div className="hidden md:flex flex-col items-end mr-2">
                         <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Số dư</span>
                         <span className="text-sm font-bold text-primary">{balance.toLocaleString()} Credits</span>
                     </div>
-                )}
-                <Button variant="outline" className="rounded-full hidden sm:flex">
+                )} */}
+                <Button variant="outline" className="rounded-full hidden sm:flex" onClick={() => setShowInstalledApps(true)}>
                     <Briefcase className="w-4 h-4 mr-2" />
                     Đã cài đặt
                 </Button>
