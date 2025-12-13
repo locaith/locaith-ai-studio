@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import VoiceChat from './VoiceChat';
 import { DirectChatFeature } from './DirectChatFeature';
+import { InstallPWAButton } from './InstallPWAButton';
 import { VoiceMode, ViewState } from '../src/types/voice';
 
 interface Website {
@@ -75,17 +76,18 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
             ) : (
                 <>
             {/* Mobile Header - Only visible on mobile */}
-            <div className="flex md:hidden items-center gap-3 pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] px-3 border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-20">
+            <div className="flex md:hidden items-center gap-2 pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] px-3 border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-20">
                 <img src="/logo-locaith.png" alt="Locaith" className="h-8 w-auto shrink-0" />
-                <div className="flex-1">
-                    <div className="h-9 neu-input flex items-center px-4 rounded-full">
-                        <Search className="w-4 h-4 text-muted-foreground mr-2" />
+                <div className="flex-1 min-w-0">
+                    <div className="h-9 neu-input flex items-center px-3 rounded-full">
+                        <Search className="w-4 h-4 text-muted-foreground mr-1.5 shrink-0" />
                         <input 
-                            className="bg-transparent border-none outline-none text-sm w-full placeholder:text-muted-foreground" 
+                            className="bg-transparent border-none outline-none text-sm w-full placeholder:text-muted-foreground min-w-0" 
                             placeholder="Tìm kiếm..." 
                         />
                     </div>
                 </div>
+                <InstallPWAButton />
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-start p-4 pt-4 md:justify-center md:pt-4 pb-32 md:pb-4 relative overflow-y-auto md:overflow-hidden min-h-[500px] md:min-h-0 no-scrollbar">
