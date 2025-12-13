@@ -75,7 +75,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
             ) : (
                 <>
             {/* Mobile Header - Only visible on mobile */}
-            <div className="flex md:hidden items-center gap-3 h-14 px-3 border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-20">
+            <div className="flex md:hidden items-center gap-3 pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] px-3 border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-20">
                 <img src="/logo-locaith.png" alt="Locaith" className="h-8 w-auto shrink-0" />
                 <div className="flex-1">
                     <div className="h-9 neu-input flex items-center px-4 rounded-full">
