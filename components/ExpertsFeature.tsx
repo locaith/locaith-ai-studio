@@ -237,7 +237,7 @@ const RegisterExpertPage = ({ onBack }: { onBack: () => void }) => {
     return (
         <div className="flex flex-col flex-1 h-full min-w-0 bg-background relative z-10">
             {/* Header */}
-            <div className="h-14 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4">
+            <div className="h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4">
                  <Button 
                     variant="ghost" 
                     size="sm" 
@@ -496,8 +496,8 @@ const HireExpertPage = ({ expert, onBack }: { expert: typeof mockExperts[0]; onB
     return (
         <div className="flex flex-col flex-1 h-full min-w-0 bg-background relative z-10 animate-fade-in-up">
             {/* Header */}
-            <div className="h-14 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4 pt-[env(safe-area-inset-top)] mt-[env(safe-area-inset-top)]">
-                <Button 
+            <div className="h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4">
+                 <Button 
                     variant="ghost" 
                     size="sm" 
                     className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
@@ -913,7 +913,7 @@ export const ExpertsFeature = () => {
 
                     <div className="flex flex-col flex-1 h-full min-w-0 relative">
                         {/* Top Navigation Bar */}
-                        <div className="h-14 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center justify-between px-4 md:px-8 shrink-0 z-40 sticky top-0">
+                        <div className="h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center justify-between px-4 md:px-8 shrink-0 z-40 sticky top-0">
                             <Button 
                                 variant="ghost" 
                                 size="sm" 
