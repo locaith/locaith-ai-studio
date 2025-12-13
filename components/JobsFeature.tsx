@@ -837,7 +837,7 @@ export const JobsFeature: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div id="job-list-top" className="flex flex-col md:flex-row items-center justify-between gap-4 sticky top-16 z-30 py-2 bg-slate-50/50 dark:bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div id="job-list-top" className="flex flex-col md:flex-row items-center justify-between gap-4 sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 py-2 bg-slate-50/50 dark:bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <ScrollArea className="w-full max-w-[calc(100vw-32px)]">
                 <div className="flex items-center gap-2">
                     {jobCategories.map((cat) => (
