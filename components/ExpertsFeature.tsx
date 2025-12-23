@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { GlobalSidebar, FeatureType } from './GlobalSidebar';
 import { useNavigate } from 'react-router-dom';
 import { useLayoutContext } from '../src/context/LayoutContext';
+import { useAuth } from '../src/hooks/useAuth';
+import { LoginPage } from './LoginPage';
 
 // --- Mock Data ---
 
@@ -219,11 +221,17 @@ const mockExperts = [
 
 
 
-const RegisterExpertPage = ({ onBack }: { onBack: () => void }) => {
+const RegisterExpertPage = ({ onBack, isAuthenticated, onRequireLogin }: { onBack: () => void; isAuthenticated: boolean; onRequireLogin: () => void }) => {
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (!isAuthenticated) {
+            onRequireLogin();
+            return;
+        }
+
         setLoading(true);
         // Mock API call
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -478,13 +486,19 @@ const RegisterExpertPage = ({ onBack }: { onBack: () => void }) => {
     );
 };
 
-const HireExpertPage = ({ expert, onBack }: { expert: typeof mockExperts[0]; onBack: () => void }) => {
+const HireExpertPage = ({ expert, onBack, isAuthenticated, onRequireLogin }: { expert: typeof mockExperts[0]; onBack: () => void; isAuthenticated: boolean; onRequireLogin: () => void }) => {
     const [loading, setLoading] = useState(false);
     const [budget, setBudget] = useState("");
     const [duration, setDuration] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!isAuthenticated) {
+            onRequireLogin();
+            return;
+        }
+
         setLoading(true);
         // Mock API call
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -666,21 +680,56 @@ const HireExpertPage = ({ expert, onBack }: { expert: typeof mockExperts[0]; onB
 
 export const ExpertsFeature = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { setIsCollapsed } = useLayoutContext();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
   const [hiringExpert, setHiringExpert] = useState<typeof mockExperts[0] | null>(null);
   const [selectedExpert, setSelectedExpert] = useState<typeof mockExperts[0] | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
 
   // --- Render Register Page ---
   if (isRegistering) {
-      return <RegisterExpertPage onBack={() => setIsRegistering(false)} />;
+      return (
+        <>
+            {showLogin && (
+                <div className="fixed inset-0 z-[100] bg-background animate-in fade-in zoom-in duration-300">
+                    <LoginPage 
+                        onLoginSuccess={() => setShowLogin(false)} 
+                        onBack={() => setShowLogin(false)} 
+                    />
+                </div>
+            )}
+            <RegisterExpertPage 
+                onBack={() => setIsRegistering(false)} 
+                isAuthenticated={isAuthenticated}
+                onRequireLogin={() => setShowLogin(true)}
+            />
+        </>
+      );
   }
 
   // --- Render Hire Expert Page ---
   if (hiringExpert) {
-      return <HireExpertPage expert={hiringExpert} onBack={() => setHiringExpert(null)} />;
+      return (
+        <>
+            {showLogin && (
+                <div className="fixed inset-0 z-[100] bg-background animate-in fade-in zoom-in duration-300">
+                    <LoginPage 
+                        onLoginSuccess={() => setShowLogin(false)} 
+                        onBack={() => setShowLogin(false)} 
+                    />
+                </div>
+            )}
+            <HireExpertPage 
+                expert={hiringExpert} 
+                onBack={() => setHiringExpert(null)} 
+                isAuthenticated={isAuthenticated}
+                onRequireLogin={() => setShowLogin(true)}
+            />
+        </>
+      );
   }
 
   const handleNavigate = (feature: FeatureType) => {
@@ -726,6 +775,14 @@ export const ExpertsFeature = () => {
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-fit">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="-ml-2 text-muted-foreground hover:text-foreground" 
+                    onClick={() => navigate(-1)}
+                >
+                    <ChevronLeft className="h-6 w-6" />
+                </Button>
                 <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
                     <Award className="h-5 w-5" />
                 </div>

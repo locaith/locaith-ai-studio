@@ -84,6 +84,7 @@ const LayoutContent = ({ children }: LayoutProps) => {
     if (path.includes('jobs') || path.includes('giao-viec-lam')) return 'jobs';
     if (path.includes('jobs/my-jobs')) return 'jobs';
     if (path.includes('experts') || path.includes('chuyen-gia')) return 'experts';
+    if (path.includes('goi-tho')) return 'experts';
     if (path.includes('automation')) return 'automation';
     if (path.includes('voice')) return 'voice';
     if (path.includes('chat')) return 'chat';

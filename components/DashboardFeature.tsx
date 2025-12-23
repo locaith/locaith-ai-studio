@@ -17,6 +17,7 @@ import {
 import VoiceChat from './VoiceChat';
 import { DirectChatFeature } from './DirectChatFeature';
 import { InstallPWAButton } from './InstallPWAButton';
+import { LoginPage } from './LoginPage';
 import { VoiceMode, ViewState } from '../src/types/voice';
 
 interface Website {
@@ -54,6 +55,12 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
 
     const handleSendMessage = (message: string) => {
         if (!message.trim()) return;
+
+        if (!isAuthenticated) {
+            setShowLogin(true);
+            return;
+        }
+
         setInitialMessage(message);
         setChatStarted(true);
     };
@@ -113,7 +120,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
 
                     {/* Input Area */}
                     <div className="w-full relative group max-w-2xl mx-auto">
-                        <div className="neu-bg rounded-[2rem] p-2 flex flex-col gap-2 border border-border transition-all duration-300 hover:shadow-lg">
+                        <div className="neu-pressed rounded-[2rem] p-2 flex flex-col gap-2 transition-all duration-300">
                             <textarea
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
@@ -124,7 +131,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                                     }
                                 }}
                                 placeholder="Bạn đang nghĩ gì? Hãy để tôi giúp..."
-                                className="w-full bg-transparent border-none outline-none text-lg placeholder:text-muted-foreground/50 resize-none min-h-[60px] max-h-[200px] p-4 text-foreground font-medium rounded-xl focus:neu-pressed transition-all"
+                                className="w-full bg-transparent border-none outline-none text-lg placeholder:text-muted-foreground/50 resize-none min-h-[60px] max-h-[200px] p-4 text-foreground font-medium rounded-xl transition-all"
                             />
                             
                             <div className="flex items-center justify-between px-2 pb-1">
@@ -172,7 +179,7 @@ export const DashboardFeature: React.FC<{ onOpenProject: (website: Website) => v
                                 <button
                                     key={index}
                                     onClick={() => setInputValue(suggestion.text)}
-                                    className="group flex items-center justify-center p-4 rounded-2xl neu-flat hover:neu-pressed transition-all duration-300 text-center border border-transparent hover:border-border"
+                                    className="group flex items-center justify-center p-4 rounded-2xl neu-flat hover:neu-pressed transition-all duration-300 text-center"
                                 >
                                     <div>
                                         <p className="text-sm text-foreground font-medium group-hover:text-brand-600 transition-colors line-clamp-2">

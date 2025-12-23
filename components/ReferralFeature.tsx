@@ -152,7 +152,9 @@ export const ReferralFeature = () => {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-md flex flex-col items-center p-8">
-                                    <h3 className="text-lg font-bold mb-4">Quét mã để tải App</h3>
+                                    <DialogHeader>
+                                        <DialogTitle className="text-lg font-bold mb-4">Quét mã để tải App</DialogTitle>
+                                    </DialogHeader>
                                     <div className="bg-white p-4 rounded-xl shadow-inner border">
                                         {/* Mock QR Code */}
                                         <div className="w-48 h-48 bg-slate-900 pattern-dots flex items-center justify-center text-white/50 text-xs">

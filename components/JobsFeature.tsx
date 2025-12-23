@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Filter, MapPin, DollarSign, Clock, Briefcase, Star, Shield, CheckCircle2, ChevronRight, User, Users, Building2, Globe, GraduationCap, LayoutGrid, List, ChevronLeft, MessageCircle, Info, Calendar, FileText, Paperclip, Upload } from 'lucide-react';
+import { Search, Plus, Filter, HardHat, MapPin, DollarSign, Clock, Briefcase, Star, Shield, CheckCircle2, ChevronRight, User, Users, UserPlus, Building2, Globe, GraduationCap, LayoutGrid, List, ChevronLeft, MessageCircle, Info, Calendar, FileText, Paperclip, Upload } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -15,18 +15,52 @@ import { cn } from "@/lib/utils";
 
 import { GlobalSidebar, FeatureType } from './GlobalSidebar';
 import { useLayoutContext } from '../src/context/LayoutContext';
+import { useAuth } from '../src/hooks/useAuth';
+import { LoginPage } from './LoginPage';
 
 // --- Mock Data ---
 
 const jobCategories = [
-  { id: "all", label: "Tất cả" },
-  { id: "dev", label: "Lập trình & IT" },
-  { id: "design", label: "Thiết kế & Sáng tạo" },
-  { id: "marketing", label: "Marketing & Sales" },
-  { id: "content", label: "Viết lách & Dịch thuật" },
-  { id: "admin", label: "Hành chính & Nhân sự" },
-  { id: "service", label: "Dịch vụ & CSKH" },
+  { 
+    label: "Chuyên gia & Văn phòng",
+    items: [
+      { id: "dev", label: "Lập trình & IT" },
+      { id: "design", label: "Thiết kế & Sáng tạo" },
+      { id: "marketing", label: "Marketing & Sales" },
+      { id: "content", label: "Viết lách & Dịch thuật" },
+      { id: "admin", label: "Hành chính & Nhân sự" },
+      { id: "service", label: "Dịch vụ & CSKH" },
+      { id: "finance", label: "Tài chính & Kế toán" },
+      { id: "legal", label: "Pháp lý" },
+    ]
+  },
+  {
+    label: "Thợ & Dịch vụ kỹ thuật",
+    items: [
+      { id: "dien-lanh", label: "Điện lạnh" },
+      { id: "nuoc", label: "Nước & Vệ sinh" },
+      { id: "dien", label: "Điện dân dụng" },
+      { id: "dien-tu", label: "Điện tử & Công nghệ" },
+      { id: "xay-dung", label: "Xây dựng & Kiến trúc" },
+      { id: "noi-that", label: "Nhôm kính & Nội thất" },
+      { id: "co-khi", label: "Cơ khí & Hàn xì" },
+      { id: "sua-xe", label: "Sửa xe & Cứu hộ" },
+      { id: "khoa", label: "Sửa khóa & Cửa cuốn" },
+      { id: "camera", label: "Camera & An ninh" },
+    ]
+  },
+  {
+    label: "Dịch vụ đời sống",
+    items: [
+      { id: "giup-viec", label: "Giúp việc & Tạp vụ" },
+      { id: "fnb", label: "F&B & Nấu ăn" },
+      { id: "lam-dep", label: "Làm đẹp (Makeup, Nails, Spa)" },
+      { id: "van-chuyen", label: "Vận chuyển & Giao hàng" },
+    ]
+  }
 ];
+
+const allCategoriesFlat = jobCategories.flatMap(g => g.items);
 
 const generateMockJobs = () => {
   const baseJobs = [
@@ -219,6 +253,54 @@ const generateMockJobs = () => {
       postedAt: "1 giờ trước",
       timestamp: Date.now() - 3600000,
       status: "urgent"
+    },
+    {
+      id: 13,
+      title: "Sửa chữa điều hòa không mát",
+      type: "Dự án ngắn hạn",
+      category: "dien-lanh",
+      budget: "500.000 - 1.000.000 VNĐ",
+      deposit: "Không yêu cầu",
+      deadline: "Gấp",
+      location: "Hà Nội",
+      poster: { name: "Nguyễn Thị B", avatar: "NB", rating: 5.0, verified: true, commentCount: 3 },
+      requirements: ["Có mặt trong 1h", "Bảo hành 3 tháng"],
+      postedAt: "15 phút trước",
+      timestamp: Date.now() - 900000,
+      status: "urgent",
+      description: "Điều hòa Daikin 12000BTU bật không mát, cần thợ kiểm tra và nạp ga nếu cần. Địa chỉ: Cầu Giấy, Hà Nội."
+    },
+    {
+      id: 14,
+      title: "Xử lý đường ống nước bị rò rỉ",
+      type: "Dự án ngắn hạn",
+      category: "nuoc",
+      budget: "300.000 - 500.000 VNĐ",
+      deposit: "Không yêu cầu",
+      deadline: "Trong ngày",
+      location: "TP.HCM",
+      poster: { name: "Trần Văn C", avatar: "TC", rating: 4.8, verified: true, commentCount: 12 },
+      requirements: ["Mang theo đồ nghề", "Kinh nghiệm điện nước"],
+      postedAt: "1 giờ trước",
+      timestamp: Date.now() - 3600000,
+      status: "open",
+      description: "Đường ống nước dưới bồn rửa bát bị rò rỉ nước, cần thợ đến kiểm tra và thay thế đoạn ống hỏng."
+    },
+    {
+      id: 15,
+      title: "Thi công sơn lại phòng ngủ",
+      type: "Dự án",
+      category: "xay-dung",
+      budget: "2.000.000 - 3.000.000 VNĐ",
+      deposit: "500.000 VNĐ",
+      deadline: "Cuối tuần này",
+      location: "Đà Nẵng",
+      poster: { name: "Lê Văn D", avatar: "LD", rating: 4.5, verified: false, commentCount: 0 },
+      requirements: ["Sơn nước", "Tỉ mỉ", "Dọn dẹp sau thi công"],
+      postedAt: "3 giờ trước",
+      timestamp: Date.now() - 10800000,
+      status: "open",
+      description: "Cần tìm thợ sơn lại phòng ngủ diện tích 20m2. Đã có sẵn sơn, chỉ cần nhân công và dụng cụ."
     }
   ];
   return baseJobs;
@@ -384,8 +466,15 @@ const PostJobModal = () => (
                 <SelectValue placeholder="Chọn ngành nghề" />
               </SelectTrigger>
               <SelectContent>
-                {jobCategories.filter(c => c.id !== 'all').map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                {jobCategories.map((group, idx) => (
+                  <SelectGroup key={idx}>
+                    <SelectLabel>{group.label}</SelectLabel>
+                    {group.items.map(item => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>
@@ -451,7 +540,7 @@ const PostJobModal = () => (
   </DialogContent>
 );
 
-const ApplyJobPage = ({ job, onBack }: { job: any; onBack: () => void }) => {
+const ApplyJobPage = ({ job, onBack, isAuthenticated, onRequireLogin }: { job: any; onBack: () => void; isAuthenticated: boolean; onRequireLogin: () => void }) => {
   const [bid, setBid] = useState<string>("");
   
   // Helper to parse and format currency
@@ -644,8 +733,15 @@ const FreelancerRegistrationModal = () => (
                 <SelectValue placeholder="Chọn lĩnh vực" />
               </SelectTrigger>
               <SelectContent>
-                {jobCategories.filter(c => c.id !== 'all').map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                {jobCategories.map((group, idx) => (
+                  <SelectGroup key={idx}>
+                    <SelectLabel>{group.label}</SelectLabel>
+                    {group.items.map(item => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>
@@ -698,7 +794,7 @@ const FreelancerRegistrationModal = () => (
   </DialogContent>
 );
 
-const PostJobPage = ({ onBack }: { onBack: () => void }) => (
+const PostJobPage = ({ onBack, isAuthenticated, onRequireLogin }: { onBack: () => void; isAuthenticated: boolean; onRequireLogin: () => void }) => (
     <div className="flex flex-col flex-1 h-full min-w-0 bg-background relative z-10">
         <div className="h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center px-4 md:px-8 shrink-0 z-40 sticky top-0 gap-4">
              <Button 
@@ -742,8 +838,15 @@ const PostJobPage = ({ onBack }: { onBack: () => void }) => (
                                         <SelectValue placeholder="Chọn ngành nghề" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {jobCategories.filter(c => c.id !== 'all').map(c => (
-                                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                                        {jobCategories.map((group, idx) => (
+                                            <SelectGroup key={idx}>
+                                                <SelectLabel>{group.label}</SelectLabel>
+                                                {group.items.map(item => (
+                                                    <SelectItem key={item.id} value={item.id}>
+                                                        {item.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -813,6 +916,10 @@ const PostJobPage = ({ onBack }: { onBack: () => void }) => (
                          <div className="flex justify-end gap-4 pt-6 border-t mt-4">
                             <Button variant="outline" size="lg" className="rounded-xl px-8 h-12" onClick={onBack}>Hủy</Button>
                             <Button size="lg" className="rounded-xl px-8 h-12 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20" onClick={() => {
+                                if (!isAuthenticated) {
+                                    onRequireLogin();
+                                    return;
+                                }
                                 toast.success("Tin của bạn đã được gửi đi phê duyệt!");
                                 onBack();
                             }}>
@@ -828,6 +935,8 @@ const PostJobPage = ({ onBack }: { onBack: () => void }) => (
 export const JobsFeature: React.FC = () => {
   const navigate = useNavigate();
   const { setIsCollapsed } = useLayoutContext();
+  const { isAuthenticated } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -896,14 +1005,43 @@ export const JobsFeature: React.FC = () => {
   // --- Render Apply Job View ---
   if (selectedJobForApply) {
       return (
-          <ApplyJobPage job={selectedJobForApply} onBack={() => setSelectedJobForApply(null)} />
+        <>
+            {showLogin && (
+                <div className="fixed inset-0 z-[100] bg-background animate-in fade-in zoom-in duration-300">
+                    <LoginPage 
+                        onLoginSuccess={() => setShowLogin(false)} 
+                        onBack={() => setShowLogin(false)} 
+                    />
+                </div>
+            )}
+            <ApplyJobPage 
+                job={selectedJobForApply} 
+                onBack={() => setSelectedJobForApply(null)} 
+                isAuthenticated={isAuthenticated}
+                onRequireLogin={() => setShowLogin(true)}
+            />
+        </>
       )
   }
 
   // --- Render Create Job View ---
   if (isCreatingJob) {
       return (
-          <PostJobPage onBack={() => setIsCreatingJob(false)} />
+        <>
+            {showLogin && (
+                <div className="fixed inset-0 z-[100] bg-background animate-in fade-in zoom-in duration-300">
+                    <LoginPage 
+                        onLoginSuccess={() => setShowLogin(false)} 
+                        onBack={() => setShowLogin(false)} 
+                    />
+                </div>
+            )}
+            <PostJobPage 
+                onBack={() => setIsCreatingJob(false)} 
+                isAuthenticated={isAuthenticated}
+                onRequireLogin={() => setShowLogin(true)}
+            />
+        </>
       )
   }
 
@@ -914,19 +1052,9 @@ export const JobsFeature: React.FC = () => {
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-fit">
-                <div 
-                  className="bg-primary text-primary-foreground p-1.5 rounded-lg cursor-pointer md:cursor-default"
-                  onClick={() => {
-                    // Navigate to Experts page on mobile
-                    if (window.innerWidth < 768) {
-                      navigate('/chuyen-gia');
-                    }
-                  }}
-                >
-                    <Users className="h-5 w-5 md:hidden" />
-                    <Briefcase className="h-5 w-5 hidden md:block" />
+                <div className="bg-primary/10 p-2 rounded-xl">
+                    <Briefcase className="w-6 h-6 text-primary" />
                 </div>
-                <span className="font-bold text-lg hidden md:block">Sàn Việc Làm</span>
             </div>
 
             <div className="flex-1 max-w-2xl relative">
@@ -956,46 +1084,86 @@ export const JobsFeature: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8 pb-32">
         
-        {/* Hero / Stats Section */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-6 text-white relative overflow-hidden shadow-xl shadow-blue-500/10">
-            <div className="relative z-10">
-              <h3 className="text-lg font-medium opacity-90 mb-1">Công việc mới</h3>
-              <p className="text-4xl font-bold">1,248</p>
+        {/* Navigation Buttons - Clean & Modern Layout */}
+        <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6 md:mb-8">
+            <div 
+                onClick={() => navigate('/chuyen-gia')}
+                className="group relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-900 rounded-2xl p-0.5 md:p-1 cursor-pointer shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 hover:-translate-y-1 aspect-[4/3] md:aspect-auto"
+            >
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 md:p-4 flex flex-col md:flex-row items-center justify-center md:justify-between h-full gap-1 md:gap-0">
+                    <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
+                        <div className="bg-white/20 p-2 md:p-2.5 rounded-xl text-white group-hover:scale-110 transition-transform">
+                            <Users className="w-5 h-5 md:w-6 md:h-6" />
+                        </div>
+                        <div className="text-center md:text-left">
+                            <h3 className="font-bold text-[10px] md:text-lg text-white leading-tight md:leading-none md:mb-1">Chuyên gia</h3>
+                            <p className="text-blue-100 text-xs font-medium hidden md:block">Tìm kiếm chuyên gia</p>
+                        </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-1 transition-all hidden md:block" />
+                </div>
             </div>
-            <div className="absolute -right-4 -bottom-4 bg-white/10 w-32 h-32 rounded-full blur-2xl"></div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-3xl p-6 text-white relative overflow-hidden shadow-xl shadow-purple-500/10">
-             <div className="relative z-10">
-              <h3 className="text-lg font-medium opacity-90 mb-1">Hoàn thành</h3>
-              <p className="text-4xl font-bold">856</p>
+
+            <div 
+                onClick={() => navigate('/goi-tho')}
+                className="group relative overflow-hidden bg-gradient-to-br from-indigo-600 to-purple-700 dark:from-indigo-700 dark:to-purple-900 rounded-2xl p-0.5 md:p-1 cursor-pointer shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 transition-all duration-300 hover:-translate-y-1 aspect-[4/3] md:aspect-auto"
+            >
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 md:p-4 flex flex-col md:flex-row items-center justify-center md:justify-between h-full gap-1 md:gap-0">
+                    <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
+                        <div className="bg-white/20 p-2 md:p-2.5 rounded-xl text-white group-hover:scale-110 transition-transform">
+                            <HardHat className="w-5 h-5 md:w-6 md:h-6" />
+                        </div>
+                        <div className="text-center md:text-left">
+                            <h3 className="font-bold text-[10px] md:text-lg text-white leading-tight md:leading-none md:mb-1">Gọi thợ</h3>
+                            <p className="text-purple-100 text-xs font-medium hidden md:block">Dịch vụ sửa chữa</p>
+                        </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-1 transition-all hidden md:block" />
+                </div>
             </div>
-            <div className="absolute -right-4 -bottom-4 bg-white/10 w-32 h-32 rounded-full blur-2xl"></div>
-          </div>
-           <div className="col-span-2 md:col-span-1 bg-white dark:bg-secondary/20 border border-border/50 rounded-3xl p-6 relative overflow-hidden flex items-center justify-between group cursor-pointer hover:border-primary/50 transition-all">
-             <div>
-              <h3 className="text-lg font-bold text-foreground mb-1">Đăng ký Freelancer</h3>
-              <p className="text-sm text-muted-foreground">Tạo hồ sơ và bắt đầu kiếm tiền ngay hôm nay</p>
-              <Dialog>
+
+             <Dialog>
                 <DialogTrigger asChild>
-                  <Button variant="link" className="p-0 h-auto mt-2 text-primary font-bold">
-                    Tham gia ngay <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
+                    <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-800 rounded-2xl p-0.5 md:p-1 cursor-pointer shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-300 hover:-translate-y-1 aspect-[4/3] md:aspect-auto">
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 md:p-4 flex flex-col md:flex-row items-center justify-center md:justify-between h-full gap-1 md:gap-0">
+                            <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
+                                <div className="bg-white/20 p-2 md:p-2.5 rounded-xl text-white group-hover:scale-110 transition-transform">
+                                    <UserPlus className="w-5 h-5 md:w-6 md:h-6" />
+                                </div>
+                                <div className="text-center md:text-left">
+                                    <h3 className="font-bold text-[10px] md:text-lg text-white leading-tight md:leading-none md:mb-1">Đăng ký</h3>
+                                    <p className="text-emerald-100 text-xs font-medium hidden md:block">Bắt đầu kiếm tiền</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-1 transition-all hidden md:block" />
+                        </div>
+                    </div>
                 </DialogTrigger>
                 <FreelancerRegistrationModal />
-              </Dialog>
-            </div>
-            <div className="bg-primary/10 p-3 rounded-2xl group-hover:scale-110 transition-transform">
-                <User className="w-8 h-8 text-primary" />
-            </div>
-          </div>
+            </Dialog>
         </div>
 
-        {/* Filters */}
-        <div id="job-list-top" className="flex flex-col md:flex-row items-center justify-between gap-4 sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 py-2 bg-slate-50/50 dark:bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 scroll-mt-[calc(4rem+env(safe-area-inset-top))]">
-            <ScrollArea className="w-full max-w-[calc(100vw-32px)]">
-                <div className="flex items-center gap-2">
-                    {jobCategories.map((cat) => (
+        {/* Filters - Professional & Sticky */}
+        <div id="job-list-top" className="sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-slate-50/80 dark:bg-background/80 backdrop-blur-md border-y border-border/40 mb-6 transition-all">
+            <ScrollArea className="w-full">
+                <div className="flex items-center gap-2.5 pb-1">
+                    <button
+                        onClick={() => {
+                            setActiveCategory("all");
+                            setCurrentPage(1);
+                        }}
+                        className={cn(
+                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap border select-none",
+                            activeCategory === "all"
+                                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25 scale-105"
+                                : "bg-white dark:bg-secondary/20 text-muted-foreground border-transparent hover:border-border hover:bg-secondary/50 hover:text-foreground"
+                        )}
+                    >
+                        <LayoutGrid className="w-4 h-4" />
+                        Tất cả
+                    </button>
+                    <div className="w-px h-6 bg-border/60 mx-1 shrink-0" />
+                    {allCategoriesFlat.map((cat) => (
                         <button
                             key={cat.id}
                             onClick={() => {
@@ -1003,10 +1171,10 @@ export const JobsFeature: React.FC = () => {
                                 setCurrentPage(1);
                             }}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap",
+                                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap border select-none",
                                 activeCategory === cat.id
-                                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                                    : "bg-background border border-border hover:bg-secondary hover:text-foreground"
+                                    ? "bg-primary/10 text-primary border-primary/20 shadow-sm font-semibold"
+                                    : "bg-white dark:bg-secondary/20 text-muted-foreground border-transparent hover:border-border hover:bg-secondary/50 hover:text-foreground"
                             )}
                         >
                             {cat.label}

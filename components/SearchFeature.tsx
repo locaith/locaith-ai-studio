@@ -136,7 +136,7 @@ export const SearchFeature: React.FC = () => {
            )}
 
            <div className={`relative transition-all duration-500 ${hasSearched ? 'w-full max-w-3xl mx-auto' : 'w-full max-w-2xl'}`}>
-              <div className={`relative flex flex-col neu-bg rounded-3xl border border-border transition-all duration-300 overflow-hidden group p-2 ${hasSearched ? 'shadow-sm' : 'shadow-lg'}`}>
+              <div className={`relative flex flex-col neu-pressed rounded-3xl transition-all duration-300 overflow-hidden group p-2`}>
                   
                   {/* Text Area */}
                   <textarea

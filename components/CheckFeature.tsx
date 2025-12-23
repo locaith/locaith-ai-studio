@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useAuth } from '../src/hooks/useAuth';
+import { LoginPage } from './LoginPage';
 
 // --- Mock Data for Verification ---
 const MOCK_EXPERTS = [
@@ -212,6 +214,8 @@ const MOCK_JOBS = [
 ];
 
 export const CheckFeature: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
   const [query, setQuery] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -231,6 +235,11 @@ export const CheckFeature: React.FC = () => {
 
   const handleSearch = async () => {
     if (!query.trim()) return;
+
+    if (!isAuthenticated) {
+        setShowLogin(true);
+        return;
+    }
     
     setHasSearched(true);
     setIsLoading(true);
@@ -299,7 +308,16 @@ export const CheckFeature: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full w-full text-foreground overflow-hidden font-sans animate-fade-in-up transition-colors duration-300 flex-col relative" style={{ background: 'transparent' }}>
+    <>
+      {showLogin && (
+          <div className="fixed inset-0 z-[100] bg-background animate-in fade-in zoom-in duration-300">
+              <LoginPage 
+                  onLoginSuccess={() => setShowLogin(false)} 
+                  onBack={() => setShowLogin(false)} 
+              />
+          </div>
+      )}
+      <div className="flex h-full w-full text-foreground overflow-hidden font-sans animate-fade-in-up transition-colors duration-300 flex-col relative" style={{ background: 'transparent' }}>
       
       {/* Main Content Area */}
       <div className={`${hasSearched ? 'w-full max-w-[1920px] mx-auto px-4 md:px-4' : 'w-full max-w-4xl mx-auto mt-[10vh] md:mt-[15vh] px-4 md:px-6'} flex flex-col transition-all duration-700 h-full relative z-10`}>
@@ -622,5 +640,6 @@ export const CheckFeature: React.FC = () => {
         )}
       </div>
     </div>
+    </>
   );
 };

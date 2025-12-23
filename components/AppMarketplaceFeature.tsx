@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { LoginPage } from "./LoginPage";
 
 // --- Mock Data ---
 
@@ -481,6 +482,7 @@ export const AppMarketplaceFeature: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [balance, setBalance] = useState(1250);
   const [showInstalledApps, setShowInstalledApps] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -495,6 +497,11 @@ export const AppMarketplaceFeature: React.FC = () => {
   const featuredApp = byLocaithApps.find(app => app.id === 'bl0');
 
   const handleOpenApp = (app: any) => {
+    if (!isAuthenticated) {
+        setShowLogin(true);
+        return;
+    }
+
     if (app.route) {
         navigate(app.route);
         toast.info(`Đang mở ${app.title}...`);
@@ -502,6 +509,17 @@ export const AppMarketplaceFeature: React.FC = () => {
         toast.success("Đã thêm vào thư viện của bạn");
     }
   };
+
+  if (showLogin) {
+    return (
+        <div className="fixed inset-0 z-[100] bg-background animate-in fade-in zoom-in duration-300">
+            <LoginPage 
+                onLoginSuccess={() => setShowLogin(false)} 
+                onBack={() => setShowLogin(false)} 
+            />
+        </div>
+    );
+  }
 
   if (showInstalledApps) {
     return <InstalledAppsPage onBack={() => setShowInstalledApps(false)} />;

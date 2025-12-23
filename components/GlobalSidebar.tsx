@@ -197,13 +197,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             label="Sàn việc làm"
             isCollapsed={isCollapsed}
           />
-          <SidebarItem
-            active={activeFeature === 'experts'}
-            onClick={() => onSelect('experts')}
-            icon={<Users className="h-4 w-4" />}
-            label="Chuyên gia"
-            isCollapsed={isCollapsed}
-          />
+
           {/* <SidebarItem
             active={activeFeature === 'web-builder'}
             onClick={() => onSelect('web-builder')}

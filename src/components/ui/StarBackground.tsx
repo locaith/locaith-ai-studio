@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 
 const StarBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -9,6 +11,11 @@ const StarBackground: React.FC = () => {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    const isDark = resolvedTheme === 'dark';
+    const bgColor = isDark ? '#000000' : '#e2e8f0';
+    // Star color: white in dark mode, dark gray in light mode
+    const starBaseColor = isDark ? 255 : 30;  
 
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -44,7 +51,7 @@ const StarBackground: React.FC = () => {
     let rotation = 0;
 
     const animate = () => {
-      ctx.fillStyle = '#000000'; // Black background
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, width, height);
       
       rotation -= 0.0005; // Rotate from left to right (clockwise) slowly
@@ -88,14 +95,28 @@ const StarBackground: React.FC = () => {
         // Draw star if within bounds
         if (px >= 0 && px <= width && py >= 0 && py <= height) {
           const size = Math.max(0, (1 - star.z / width) * 3.0);
-        const shade = Math.max(0, Math.floor((1 - star.z / width) * 255));
           
-        ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
-        ctx.beginPath();
-        if (size > 0) {
-          ctx.arc(px, py, size / 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
+          // Calculate fade based on distance
+          const fade = 1 - star.z / width;
+          
+          if (isDark) {
+            // White stars in dark mode
+            const shade = Math.floor(fade * 255);
+            ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+          } else {
+            // Dark gray stars in light mode
+            // We want them to fade to white (bg) as they get further
+            // So if fade is 1 (close), color is starBaseColor (30)
+            // If fade is 0 (far), color is 255 (white)
+            const shade = Math.floor(255 - (fade * (255 - starBaseColor)));
+            ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+          }
+          
+          ctx.beginPath();
+          if (size > 0) {
+            ctx.arc(px, py, size / 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
 
@@ -108,13 +129,13 @@ const StarBackground: React.FC = () => {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [resolvedTheme]);
 
   return (
     <canvas 
       ref={canvasRef} 
       className="absolute inset-0 w-full h-full pointer-events-none z-0"
-      style={{ background: 'black' }}
+      style={{ background: resolvedTheme === 'dark' ? 'black' : '#e2e8f0' }}
     />
   );
 };

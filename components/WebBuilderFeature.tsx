@@ -6,6 +6,7 @@ import { PreviewPane } from './PreviewPane';
 import { ProjectThumbnail } from './ProjectThumbnail';
 import { streamWebsiteCode } from '../services/geminiService';
 import { useUserActivity } from '../src/hooks/useUserActivity';
+import { useAuth } from '../src/hooks/useAuth';
 import { supabase } from '../src/lib/supabase';
 import { vi } from '../src/locales/vi';
 import { Button } from "@/components/ui/button";
@@ -162,6 +163,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
     const lastUserPromptRef = useRef<{ text: string; time: number } | null>(null);
 
     const { trackActivity } = useUserActivity();
+    const { user } = useAuth();
 
     // --- Effects ---
 
@@ -467,8 +469,8 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
 
     const saveProject = async (code: string, msgs: Message[]) => {
         try {
-            // Use local mock user for Docker mode
-            const user = { id: 'local-dev-user' };
+            // Use real user ID
+            const userId = user?.id || 'local-dev-user';
 
             const currentProjectName = projectName || generateProjectName();
             if (!projectName) setProjectName(currentProjectName);
@@ -479,7 +481,7 @@ export const WebBuilderFeature: React.FC<WebBuilderFeatureProps> = ({
 
             const projectData = {
                 id: projectId,
-                user_id: user.id,
+                user_id: userId,
                 name: currentProjectName,
                 subdomain: projectId ? undefined : uniqueSubdomain,
                 html_content: code,

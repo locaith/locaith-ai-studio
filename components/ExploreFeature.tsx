@@ -10,6 +10,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { LoginPage } from './LoginPage';
 
 // --- Mock Data ---
 
@@ -131,11 +132,35 @@ const ItemList = ({ items, showRank = false, onItemClick }: { items: any[], show
 export const ExploreFeature: React.FC = () => {
   const [activeTab, setActiveTab] = useState("Nổi bật");
   const [searchQuery, setSearchQuery] = useState("");
+  const [inputValue, setInputValue] = useState("");
+  const [showLogin, setShowLogin] = useState(false);
   const [activeIframeUrl, setActiveIframeUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
+  const handleSearch = () => {
+      if (!inputValue.trim()) {
+          setSearchQuery("");
+          return;
+      }
+      if (!isAuthenticated) {
+          setShowLogin(true);
+          return;
+      }
+      setSearchQuery(inputValue);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+          handleSearch();
+      }
+  };
+
   const handleItemClick = (item: any) => {
+    if (!isAuthenticated) {
+        setShowLogin(true);
+        return;
+    }
     if (item.title === "Trợ lý Lịch trình") {
       setActiveIframeUrl("https://dantri.com.vn/");
     }
@@ -183,6 +208,15 @@ export const ExploreFeature: React.FC = () => {
   }
 
   return (
+    <>
+      {showLogin && (
+          <div className="fixed inset-0 z-[100] bg-background animate-in fade-in zoom-in duration-300">
+              <LoginPage 
+                  onLoginSuccess={() => setShowLogin(false)} 
+                  onBack={() => setShowLogin(false)} 
+              />
+          </div>
+      )}
     <div className="h-full w-full bg-background text-foreground overflow-y-auto relative selection:bg-primary/30 font-sans">
       {/* Ambient Background Effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -205,8 +239,9 @@ export const ExploreFeature: React.FC = () => {
               <Input 
                   className="h-9 neu-input text-xs text-foreground placeholder:text-muted-foreground px-4 focus:ring-0" 
                   placeholder="Tìm kiếm trong khám phá..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
               />
           </div>
           <Button size="icon" className="neu-icon-btn shrink-0 relative h-9 w-9 hover:text-primary">
@@ -234,12 +269,13 @@ export const ExploreFeature: React.FC = () => {
             <div className="max-w-2xl mx-auto relative group">
                 <div className="absolute inset-0 bg-primary/20 rounded-lg blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="relative">
-                    <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors cursor-pointer" onClick={handleSearch} />
                     <Input 
                         className="h-12 pl-12 bg-secondary/50 border-border hover:bg-accent hover:border-primary/50 focus:border-primary focus:ring-1 focus:ring-primary/50 text-lg text-foreground placeholder:text-muted-foreground shadow-inner transition-all duration-300" 
                         placeholder="Tìm kiếm trong khám phá..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
                     />
                 </div>
             </div>
@@ -429,5 +465,6 @@ export const ExploreFeature: React.FC = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
