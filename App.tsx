@@ -40,6 +40,15 @@ const ExpertUpdateFeature = React.lazy(() => import('./components/ExpertUpdateFe
 const PaymentFeature = React.lazy(() => import('./components/PaymentFeature').then(m => ({ default: m.PaymentFeature })));
 const WalletHistoryFeature = React.lazy(() => import('./components/WalletHistoryFeature').then(m => ({ default: m.WalletHistoryFeature })));
 const UpgradeFeature = React.lazy(() => import('./components/UpgradeFeature').then(m => ({ default: m.UpgradeFeature })));
+const RegisterFreelancerFeature = React.lazy(() => import('./components/RegisterFreelancerFeature').then(m => ({ default: m.RegisterFreelancerFeature })));
+const PriorityFeature = React.lazy(() => import('./components/PriorityFeature').then(m => ({ default: m.PriorityFeature })));
+const EventHubFeature = React.lazy(() => import('./components/EventHubFeature').then(m => ({ default: m.EventHubFeature })));
+const EventDetailFeature = React.lazy(() => import('./components/EventDetailFeature').then(m => ({ default: m.EventDetailFeature })));
+const We2goFeature = React.lazy(() => import('./components/We2goFeature').then(m => ({ default: m.We2goFeature })));
+const HelpiFeature = React.lazy(() => import('./components/HelpiFeature').then(m => ({ default: m.HelpiFeature })));
+const LawFeature = React.lazy(() => import('./components/LawFeature').then(m => ({ default: m.LawFeature })));
+const LcPayFeature = React.lazy(() => import('./components/LcPayFeature').then(m => ({ default: m.LcPayFeature })));
+const RealEstateFeature = React.lazy(() => import('./components/RealEstateFeature').then(m => ({ default: m.RealEstateFeature })));
 const VoiceChat = React.lazy(() => import('./components/VoiceChat'));
 
 // Wrappers for Navigation and State
@@ -107,6 +116,7 @@ const App = () => (
                     <Route path="/compose" element={<ProtectedRoute><ComposeFeature /></ProtectedRoute>} />
                     <Route path="/design" element={<ProtectedRoute><DesignFeature initialType="interior" /></ProtectedRoute>} />
                     <Route path="/fashion" element={<ProtectedRoute><FashionFeature /></ProtectedRoute>} />
+                    <Route path="/shopping" element={<ProtectedRoute><FashionFeature /></ProtectedRoute>} />
                     <Route path="/automation" element={<ProtectedRoute><ContentAutomationFeature /></ProtectedRoute>} />
                     <Route path="/voice" element={<ProtectedRoute><VoiceRoute /></ProtectedRoute>} />
                     <Route path="/apps" element={<AppMarketplaceFeature />} />
@@ -132,6 +142,15 @@ const App = () => (
                     <Route path="/membership/promos" element={<ProtectedRoute><PromotionsFeature /></ProtectedRoute>} />
                     <Route path="/membership/tier" element={<ProtectedRoute><MembershipTierFeature /></ProtectedRoute>} />
                     <Route path="/membership/referral" element={<ProtectedRoute><ReferralFeature /></ProtectedRoute>} />
+                    <Route path="/dang-ky-freelancer" element={<ProtectedRoute><RegisterFreelancerFeature /></ProtectedRoute>} />
+                    <Route path="/events" element={<EventHubFeature />} />
+                    <Route path="/events/:id" element={<EventDetailFeature />} />
+                    <Route path="/we2go" element={<We2goFeature />} />
+                    <Route path="/helpi" element={<HelpiFeature />} />
+                    <Route path="/law" element={<LawFeature />} />
+                    <Route path="/lcpay" element={<LcPayFeature />} />
+                    <Route path="/real-estate" element={<RealEstateFeature />} />
+                    <Route path="/priority" element={<PriorityFeature />} />
                     {/* Add catch-all route */}
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

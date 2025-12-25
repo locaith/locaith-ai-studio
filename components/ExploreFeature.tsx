@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Zap, Globe, MessageSquare, PenTool, BookOpen, Code, User, Briefcase, TrendingUp, MoreHorizontal, Star, Bell, Building2, Users, Layers, GraduationCap, Newspaper, HelpCircle, Heart, Share2, Lightbulb, Activity, ArrowLeft, MessageCircle } from 'lucide-react';
+import { Search, Plus, Zap, Globe, MessageSquare, PenTool, BookOpen, Code, User, Briefcase, TrendingUp, MoreHorizontal, Star, Bell, Building2, Users, Layers, GraduationCap, Newspaper, HelpCircle, Heart, Share2, Lightbulb, Activity, ArrowLeft, MessageCircle, HardHat, UserPlus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ const categories = [
   "Nổi bật", 
   "Doanh nghiệp", 
   "Cá nhân", 
+  "Việc làm & Dịch vụ",
   "Ngành nghề & Lĩnh vực", 
   "Nghiên cứu & Giáo dục", 
   "Cộng đồng", 
@@ -45,7 +46,47 @@ const featuredItems = [
     views: "1.8M",
     icon: <User className="h-8 w-8 text-secondary" />,
     color: "from-zinc-500/20 to-zinc-600/20"
+  },
+  {
+    id: 'f3',
+    title: "Sàn việc làm",
+    description: "Tìm kiếm cơ hội việc làm, dự án freelancer hấp dẫn.",
+    author: "Locaith Jobs",
+    rating: "4.8",
+    views: "5M+",
+    icon: <Briefcase className="h-8 w-8 text-blue-500" />,
+    color: "from-blue-500/20 to-blue-600/20",
+    link: "/jobs"
+  },
+  {
+    id: 'f4',
+    title: "Chuyên gia",
+    description: "Kết nối với các chuyên gia hàng đầu trong nhiều lĩnh vực.",
+    author: "Locaith Experts",
+    rating: "4.9",
+    views: "2M+",
+    icon: <GraduationCap className="h-8 w-8 text-purple-500" />,
+    color: "from-purple-500/20 to-purple-600/20",
+    link: "/experts"
+  },
+  {
+    id: 'f5',
+    title: "Gọi thợ",
+    description: "Tìm thợ sửa chữa, lắp đặt uy tín ngay gần bạn.",
+    author: "Locaith Services",
+    rating: "4.7",
+    views: "3M+",
+    icon: <HardHat className="h-8 w-8 text-orange-500" />,
+    color: "from-orange-500/20 to-orange-600/20",
+    link: "/goi-tho"
   }
+];
+
+const jobsItems = [
+  { id: 'j1', title: "Sàn việc làm", description: "Cổng thông tin việc làm và dự án freelance đa dạng.", author: "Locaith Jobs", icon: <Briefcase className="h-6 w-6 text-blue-500" />, link: "/jobs" },
+  { id: 'j2', title: "Tìm Chuyên gia", description: "Kết nối chuyên gia tư vấn, thực hiện dự án chuyên sâu.", author: "Locaith Experts", icon: <GraduationCap className="h-6 w-6 text-purple-500" />, link: "/experts" },
+  { id: 'j3', title: "Gọi thợ", description: "Dịch vụ sửa chữa, lắp đặt tại nhà nhanh chóng.", author: "Locaith Services", icon: <HardHat className="h-6 w-6 text-orange-500" />, link: "/goi-tho" },
+  { id: 'j4', title: "Đăng ký Freelancer", description: "Trở thành đối tác, tìm kiếm khách hàng và tăng thu nhập.", author: "Locaith Partners", icon: <UserPlus className="h-6 w-6 text-green-500" />, link: "/dang-ky-freelancer" },
 ];
 
 const businessItems = [
@@ -159,6 +200,10 @@ export const ExploreFeature: React.FC = () => {
   const handleItemClick = (item: any) => {
     if (!isAuthenticated) {
         setShowLogin(true);
+        return;
+    }
+    if (item.link) {
+        navigate(item.link);
         return;
     }
     if (item.title === "Trợ lý Lịch trình") {
@@ -364,7 +409,18 @@ export const ExploreFeature: React.FC = () => {
                   </section>
                 )}
 
-                {/* Business Section */}
+                {/* Jobs Section */}
+        {shouldShowSection("Việc làm & Dịch vụ") && (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold tracking-tight text-foreground">Việc làm & Dịch vụ</h2>
+                    <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10 -mr-4">Xem tất cả</Button>
+                </div>
+                <ItemList items={jobsItems} onItemClick={handleItemClick} />
+            </div>
+        )}
+
+        {/* Business Section */}
                 {shouldShowSection("Doanh nghiệp") && (
                   <section className="space-y-4">
                       <div className="flex items-end justify-between border-b border-border pb-2">

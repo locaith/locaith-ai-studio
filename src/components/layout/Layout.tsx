@@ -12,7 +12,9 @@ import {
   LayoutGrid, 
   Compass, 
   User,
-  MessageCircle
+  MessageCircle,
+  Star,
+  Store
 } from "lucide-react";
 import { ShaderGradientCanvas, ShaderGradient } from 'shadergradient';
 import StarBackground from '../../components/ui/StarBackground';
@@ -24,9 +26,9 @@ interface LayoutProps {
 const MobileBottomNav = ({ activeFeature, onSelect, unreadCount }: { activeFeature: FeatureType, onSelect: (f: FeatureType) => void, unreadCount: number }) => {
   const navItems = [
     { id: 'dashboard', label: 'Tư vấn AI', icon: MessageSquare },
-    { id: 'jobs', label: 'Việc làm', icon: Briefcase },
+    { id: 'priority', label: 'Ứng dụng', icon: LayoutGrid },
     { id: 'chat', label: 'Chat', icon: Users, badge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined },
-    { id: 'apps', label: 'Ứng dụng', icon: LayoutGrid },
+    { id: 'apps', label: 'Kho', icon: Store },
     { id: 'explore', label: 'Khám phá', icon: Compass },
     { id: 'profile', label: 'Cá nhân', icon: User }, 
   ];
@@ -75,6 +77,7 @@ const LayoutContent = ({ children }: LayoutProps) => {
     const path = location.pathname;
     if (path === '/' || path === '') return 'dashboard';
     if (path.includes('builder')) return 'web-builder';
+    if (path.includes('priority')) return 'priority' as FeatureType;
     if (path.includes('design')) return 'design';
     if (path.includes('fashion')) return 'fashion' as FeatureType;
     if (path.includes('compose')) return 'text';
@@ -113,6 +116,7 @@ const LayoutContent = ({ children }: LayoutProps) => {
      else if (feature === 'apps') navigate('/apps');
      else if (feature === 'explore') navigate('/explore');
      else if (feature === 'jobs') navigate('/giao-viec-lam');
+     else if (feature === 'priority') navigate('/priority');
      else if (feature === 'experts') navigate('/chuyen-gia');
      else if (feature === 'automation') navigate('/automation');
      else if (feature === 'voice') navigate('/voice');

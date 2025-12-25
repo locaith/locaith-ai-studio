@@ -35,11 +35,13 @@ import {
   Users,
   MessageCircle,
   LogIn,
-  UserPlus
+  UserPlus,
+  Star,
+  Store
 } from 'lucide-react';
 import { useTheme } from "next-themes";
 
-export type FeatureType = 'dashboard' | 'web-builder' | 'design' | 'fashion' | 'text' | 'search' | 'voice' | 'automation' | 'settings' | 'apps' | 'explore' | 'jobs' | 'experts' | 'chat' | 'profile' | 'check' | 'projects';
+export type FeatureType = 'dashboard' | 'web-builder' | 'design' | 'fashion' | 'text' | 'search' | 'voice' | 'automation' | 'settings' | 'apps' | 'explore' | 'jobs' | 'experts' | 'chat' | 'profile' | 'check' | 'projects' | 'priority';
 export type ThemeType = 'default' | 'universe' | 'ocean' | 'sky' | 'matrix' | 'pink' | 'coffee' | 'custom';
 
 interface GlobalSidebarProps {
@@ -191,10 +193,10 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             isCollapsed={isCollapsed}
           />
           <SidebarItem
-            active={activeFeature === 'jobs'}
-            onClick={() => onSelect('jobs')}
-            icon={<Briefcase className="h-4 w-4" />}
-            label="Sàn việc làm"
+            active={activeFeature === 'priority'}
+            onClick={() => onSelect('priority')}
+            icon={<LayoutGrid className="h-4 w-4" />}
+            label="Ứng dụng"
             isCollapsed={isCollapsed}
           />
 
@@ -255,8 +257,8 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
           <SidebarItem
             active={activeFeature === 'apps'}
             onClick={() => onSelect('apps')}
-            icon={<LayoutGrid className="h-4 w-4" />}
-            label="Kho ứng dụng"
+            icon={<Store className="h-4 w-4" />}
+            label="Kho"
             isCollapsed={isCollapsed}
           />
           <SidebarItem
