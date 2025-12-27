@@ -182,7 +182,14 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             active={activeFeature === 'dashboard'}
             onClick={() => onSelect('dashboard')}
             icon={<MessageSquare className="h-4 w-4" />}
-            label="Trợ lý AI"
+            label="Tư vấn AI"
+            isCollapsed={isCollapsed}
+          />
+          <SidebarItem
+            active={activeFeature === 'apps'}
+            onClick={() => onSelect('apps')}
+            icon={<LayoutGrid className="h-4 w-4" />}
+            label="Ứng dụng"
             isCollapsed={isCollapsed}
           />
           <SidebarItem
@@ -190,13 +197,6 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             onClick={() => onSelect('search')}
             icon={<Search className="h-4 w-4" />}
             label="Tìm kiếm nâng cao"
-            isCollapsed={isCollapsed}
-          />
-          <SidebarItem
-            active={activeFeature === 'priority'}
-            onClick={() => onSelect('priority')}
-            icon={<LayoutGrid className="h-4 w-4" />}
-            label="Ứng dụng"
             isCollapsed={isCollapsed}
           />
 
@@ -248,15 +248,8 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined}
           />
           <SidebarItem
-            active={activeFeature === 'check'}
-            onClick={() => onSelect('check')}
-            icon={<Zap className="h-4 w-4" />}
-            label="Check"
-            isCollapsed={isCollapsed}
-          />
-          <SidebarItem
-            active={activeFeature === 'apps'}
-            onClick={() => onSelect('apps')}
+            active={activeFeature === 'priority'}
+            onClick={() => onSelect('priority')}
             icon={<Store className="h-4 w-4" />}
             label="Kho"
             isCollapsed={isCollapsed}
@@ -266,6 +259,13 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             onClick={() => onSelect('explore')}
             icon={<Compass className="h-4 w-4" />}
             label="Khám phá"
+            isCollapsed={isCollapsed}
+          />
+          <SidebarItem
+            active={activeFeature === 'check'}
+            onClick={() => onSelect('check')}
+            icon={<Zap className="h-4 w-4" />}
+            label="Check"
             isCollapsed={isCollapsed}
           />
 

@@ -1052,6 +1052,14 @@ export const JobsFeature: React.FC = () => {
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-fit">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="-ml-2 mr-1 h-8 w-8 text-muted-foreground hover:text-foreground" 
+                    onClick={() => navigate(-1)}
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                </Button>
                 <div className="bg-primary/10 p-2 rounded-xl">
                     <Briefcase className="w-6 h-6 text-primary" />
                 </div>

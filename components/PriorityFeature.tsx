@@ -191,32 +191,6 @@ export const PriorityFeature = () => {
                </div>
             </div>
         </div>
-
-        {/* Categories Bar */}
-        <div className="border-t border-border/50 bg-background/50">
-            <div className="max-w-5xl mx-auto">
-                <ScrollArea className="w-full whitespace-nowrap">
-                    <div className="flex px-4 py-2 space-x-2">
-                        {categories.map((cat) => (
-                            <button
-                                key={cat.id}
-                                onClick={() => setActiveCategory(cat.id)}
-                                className={cn(
-                                    "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all",
-                                    activeCategory === cat.id
-                                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                                )}
-                            >
-                                {cat.icon}
-                                {cat.label}
-                            </button>
-                        ))}
-                    </div>
-                    <ScrollBar orientation="horizontal" className="invisible" />
-                </ScrollArea>
-            </div>
-        </div>
       </div>
 
       <div className="">
@@ -266,7 +240,7 @@ export const PriorityFeature = () => {
 
           <div className="w-full h-px bg-border/50" />
 
-          {/* Top Apps List - Show all filtered modules */}
+          {/* Top Apps List - Grid Layout */}
           <section>
              <div className="flex items-center justify-between mb-4">
                <h2 className="text-xl font-bold">
@@ -277,31 +251,24 @@ export const PriorityFeature = () => {
                </Button>
             </div>
 
-            <div className="space-y-1">
+            <div className="grid grid-cols-4 md:grid-cols-5 gap-4 md:gap-8">
                {filteredModules.length > 0 ? (
-                 filteredModules.map((module, index) => (
+                 filteredModules.map((module) => (
                     <div 
                        key={module.id}
-                       className="flex items-center gap-4 p-2 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group"
+                       className="flex flex-col items-center gap-2 group cursor-pointer"
                        onClick={() => navigate(module.route)}
                     >
-                       <div className="w-8 text-center font-bold text-lg text-muted-foreground">
-                          {index + 1}
+                       <div className={cn("w-16 h-16 md:w-20 md:h-20 rounded-2xl shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:shadow-md flex items-center justify-center", "bg-gradient-to-br", module.gradient)}>
+                          {React.cloneElement(module.icon as React.ReactElement, { className: "w-8 h-8 text-white" })}
                        </div>
-                       <div className={cn("shrink-0 w-14 h-14 rounded-xl flex items-center justify-center shadow-sm", "bg-gradient-to-br", module.gradient)}>
-                          {React.cloneElement(module.icon as React.ReactElement, { className: "w-7 h-7 text-white" })}
-                       </div>
-                       <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base truncate">{module.title}</h3>
-                          <p className="text-sm text-muted-foreground truncate">{module.subtitle}</p>
-                       </div>
-                       <Button variant="secondary" className="rounded-full font-semibold bg-secondary hover:bg-secondary/80 text-blue-500 px-5 shrink-0">
-                          Mở
-                       </Button>
+                       <span className="text-xs md:text-sm font-medium text-center text-foreground/80 group-hover:text-primary transition-colors line-clamp-2 max-w-[80px] md:max-w-[100px]">
+                          {module.title}
+                       </span>
                     </div>
                  ))
                ) : (
-                  <div className="text-center py-10 text-muted-foreground">
+                  <div className="col-span-full text-center py-10 text-muted-foreground">
                     Không tìm thấy kết quả phù hợp
                   </div>
                )}

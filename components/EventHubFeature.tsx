@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell, Calendar, QrCode, Ticket, Bookmark, ChevronRight, MapPin, Star } from 'lucide-react';
+import { Search, Bell, Calendar, QrCode, Ticket, Bookmark, ChevronRight, ChevronLeft, MapPin, Star } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -84,6 +84,14 @@ export const EventHubFeature = () => {
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between px-4 h-16">
           <div className="flex items-center gap-2">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="-ml-2 mr-1 h-8 w-8 text-muted-foreground hover:text-foreground" 
+                onClick={() => navigate(-1)}
+            >
+                <ChevronLeft className="w-5 h-5" />
+            </Button>
             <div className="bg-orange-500 rounded-lg p-1.5">
               <Calendar className="w-5 h-5 text-white" />
             </div>

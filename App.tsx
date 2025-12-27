@@ -49,6 +49,7 @@ const HelpiFeature = React.lazy(() => import('./components/HelpiFeature').then(m
 const LawFeature = React.lazy(() => import('./components/LawFeature').then(m => ({ default: m.LawFeature })));
 const LcPayFeature = React.lazy(() => import('./components/LcPayFeature').then(m => ({ default: m.LcPayFeature })));
 const RealEstateFeature = React.lazy(() => import('./components/RealEstateFeature').then(m => ({ default: m.RealEstateFeature })));
+const ShoppingFeature = React.lazy(() => import('./components/ShoppingFeature').then(m => ({ default: m.ShoppingFeature })));
 const VoiceChat = React.lazy(() => import('./components/VoiceChat'));
 
 // Wrappers for Navigation and State
@@ -116,10 +117,10 @@ const App = () => (
                     <Route path="/compose" element={<ProtectedRoute><ComposeFeature /></ProtectedRoute>} />
                     <Route path="/design" element={<ProtectedRoute><DesignFeature initialType="interior" /></ProtectedRoute>} />
                     <Route path="/fashion" element={<ProtectedRoute><FashionFeature /></ProtectedRoute>} />
-                    <Route path="/shopping" element={<ProtectedRoute><FashionFeature /></ProtectedRoute>} />
+                    <Route path="/shopping" element={<ProtectedRoute><ShoppingFeature /></ProtectedRoute>} />
                     <Route path="/automation" element={<ProtectedRoute><ContentAutomationFeature /></ProtectedRoute>} />
                     <Route path="/voice" element={<ProtectedRoute><VoiceRoute /></ProtectedRoute>} />
-                    <Route path="/apps" element={<AppMarketplaceFeature />} />
+                    <Route path="/apps" element={<PriorityFeature />} />
                     <Route path="/explore" element={<ExploreFeature />} />
                     <Route path="/search" element={<ProtectedRoute><SearchFeature /></ProtectedRoute>} />
                     <Route path="/jobs" element={<JobsFeature />} />
@@ -150,7 +151,7 @@ const App = () => (
                     <Route path="/law" element={<LawFeature />} />
                     <Route path="/lcpay" element={<LcPayFeature />} />
                     <Route path="/real-estate" element={<RealEstateFeature />} />
-                    <Route path="/priority" element={<PriorityFeature />} />
+                    <Route path="/priority" element={<AppMarketplaceFeature />} />
                     {/* Add catch-all route */}
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

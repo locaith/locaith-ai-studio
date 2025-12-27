@@ -26,9 +26,9 @@ interface LayoutProps {
 const MobileBottomNav = ({ activeFeature, onSelect, unreadCount }: { activeFeature: FeatureType, onSelect: (f: FeatureType) => void, unreadCount: number }) => {
   const navItems = [
     { id: 'dashboard', label: 'Tư vấn AI', icon: MessageSquare },
-    { id: 'priority', label: 'Ứng dụng', icon: LayoutGrid },
+    { id: 'apps', label: 'Ứng dụng', icon: LayoutGrid },
     { id: 'chat', label: 'Chat', icon: Users, badge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined },
-    { id: 'apps', label: 'Kho', icon: Store },
+    { id: 'priority', label: 'Kho', icon: Store },
     { id: 'explore', label: 'Khám phá', icon: Compass },
     { id: 'profile', label: 'Cá nhân', icon: User }, 
   ];
